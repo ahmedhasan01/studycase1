@@ -96,7 +96,7 @@ class Check_Email(threading.Thread):
     def handle_api_connection(self):
         """Handle API connection issues."""
         try:
-            if not TradeData.API_connected.is_set():
+            if not TradeData.get_API_connected().is_set():
                 logging.warning("API is disconnected. Attempting to reconnect...")
                 if not self.api.connect():
                     self.handle_api_retries()
@@ -142,7 +142,7 @@ class Check_Email(threading.Thread):
             try:
                 if not self.check_network_connection():
                     self.handle_network_issues()
-                elif not TradeData.API_connected.is_set():
+                elif not TradeData.get_API_connected().is_set():
                     self.handle_api_connection()
                 
                 if self.killed.is_set():

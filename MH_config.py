@@ -1,5 +1,3 @@
-import configparser
-
 
 # config.py
 # Configuration for IQ Option API
@@ -19,12 +17,8 @@ HEADERS = {
     "sec-fetch-storage-access": "active"
 }
 
-# Global variables
-config = configparser.ConfigParser()
-config.read("config.ini")
-
-Email = config["IQOPTION"]["email"]  # User name
-Password = config["IQOPTION"]["password"]  # User passward
+Email = "ahmedhasan01@msn.com"  # User name
+Password = "@hmed1992i"  # User passward
 
 # Trading configuration
 INSTRUMENTS = 'turbo'  # Options: 'turbo' or 'binary'

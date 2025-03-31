@@ -22,7 +22,7 @@ class ServerTimeSynchronizer(threading.Thread):
     def run(self):
         """Main loop to update and synchronize the app_timer."""
         logging.info("ServerTimeSynchronizer started. Waiting for API connection...")
-        while not self.killed.is_set() and TradeData.API_connected.is_set():
+        while not self.killed.is_set() and TradeData.get_API_connected().is_set():
             
             if self.killed.is_set():
                 self.kill()

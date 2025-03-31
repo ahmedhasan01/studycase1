@@ -32,7 +32,7 @@ class Profile(threading.Thread):
     def run(self):
         """Main loop to fetch and update profile information."""
         logging.info("Profile Factory started. Waiting for API connection...")
-        while not self.killed.is_set() and TradeData.API_connected.is_set():  # Check for thread termination
+        while not self.killed.is_set() and TradeData.get_API_connected().is_set():  # Check for thread termination
 
             if self.killed.is_set():
                 self.kill()
@@ -65,7 +65,7 @@ class Profile(threading.Thread):
         self.Profile_Information.loc[f"{Mode}_balance_mode", 'my_info'] = Mode
         self.Profile_Information.loc[f"{Mode}_balance_id", 'my_info'] = self.api.get_balance_id()
         self.Profile_Information.loc[f"{Mode}_balance", 'my_info'] = self.api.get_balance()
-        for status, count in TradeData.trade_status.items():
+        for status, count in TradeData.get_trade_status().items():
             self.Profile_Information.loc[f"{status}", 'my_info'] = count
 
         # Save profile information to Excel

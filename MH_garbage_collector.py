@@ -9,6 +9,7 @@ class GCManager(threading.Thread):
         self.interval = interval  # Run GC every `interval` seconds
         self.setDaemon(True)  # Daemon mode so it exits when the main app stops
         self.killed = threading.Event()
+        gc.enable()
     
     def run(self):
         while not self.killed.is_set():

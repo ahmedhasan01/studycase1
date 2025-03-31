@@ -12,7 +12,7 @@ class CheckWin(threading.Thread):
 
     def run(self):
         """Main execution loop with 5-minute intervals"""
-        while not self.killed.is_set() and TradeData.API_connected.is_set():
+        while not self.killed.is_set() and TradeData.get_API_connected().is_set():
             
             if self.killed.is_set():
                 self.kill()
@@ -21,7 +21,7 @@ class CheckWin(threading.Thread):
             self.killed.wait(self.interval)  # Initial delay
 
             try:
-                if TradeData.API_connected.is_set():
+                if TradeData.get_API_connected().is_set():
                     self.process_trades()
             except Exception as e:
                 logging.error(f"CheckWin error: {e}", exc_info=True)
@@ -36,7 +36,7 @@ class CheckWin(threading.Thread):
         """Core trade processing logic"""
         logging.info("Starting checking win processing.")
         # Step 3: Copy and clear trade_ids
-        copied_trades = TradeData.trade_ids
+        copied_trades = TradeData.get_trade_ids()
         for id in copied_trades:
             TradeData.delete_trade_ids(id)
         
@@ -61,8 +61,8 @@ class CheckWin(threading.Thread):
         if open_options:
             max_exp = max(opt['exp_time'] for opt in open_options)
             logging.info(f"Waiting for open options to expire (approx {max_exp} seconds).")
-            while TradeData.app_timer < max_exp:
-                self.killed.wait(max_exp - TradeData.app_timer + 1)
+            while TradeData.get_app_timer() < max_exp:
+                self.killed.wait(max_exp - TradeData.get_app_timer() + 1)
 
         # Step 9-11: Check closed options
         check_win = self.api.get_optioninfo(len(copied_trades))

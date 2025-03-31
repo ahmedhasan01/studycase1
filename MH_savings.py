@@ -29,6 +29,34 @@ class TradeData:
             self.API_connected.clear()  # Mark API as disconnected (pause updates).
             logging.warning("API connection lost. Updates paused.")
 
+    def get_API_connected(self):
+        
+        return self.API_connected
+
+    def get_app_timer(self):
+        
+        return self.app_timer
+
+    def get_OP_Code(self):
+        
+        return self.OP_Code
+
+    def get_OP_Code_event(self):
+        
+        return self.OP_Code_event
+
+    def get_trade_ids(self):
+        
+        return self.trade_ids
+
+    def get_trade_status(self):
+        
+        return self.trade_status
+
+    def get_loss_records(self):
+        
+        return self.loss_records
+
     def set_app_timer(self, time):
         """
         Set the app_timer by a specified value in a thread-safe manner.

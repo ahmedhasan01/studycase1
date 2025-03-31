@@ -53,7 +53,7 @@ class Candles_Assets(threading.Thread):
                     self.trading_threads.remove(thread)  # Remove the thread from trading_threads
                     logging.info(f"Trading thread for {thread.active_name} moved to sleeping threads.")
 
-    def fetch_candles(self, count, timestamp:int = TradeData.app_timer):
+    def fetch_candles(self, count, timestamp:int = TradeData.get_app_timer()):
         """Fetch candlestick data for the specified asset."""
         try:
             candles = self.api.get_candles(self.active_name, self.interval, count + 2, timestamp)
@@ -66,7 +66,7 @@ class Candles_Assets(threading.Thread):
         """Update the stock DataFrame with new candles."""
         if candles:
             new_data = pandas.DataFrame(candles)
-            new_data = new_data[new_data['to'] < TradeData.app_timer]
+            new_data = new_data[new_data['to'] < TradeData.get_app_timer()]
             if self.stock.empty:
                 self.stock = new_data
             else:
@@ -92,14 +92,14 @@ class Candles_Assets(threading.Thread):
             self.stock = self.stock.tail(self.candles_count)
             self.stock = Indicators(self.stock).run()
             # Check if next_candle_time is reached
-            if self.schedule <= TradeData.app_timer:
+            if self.schedule <= TradeData.get_app_timer():
                 self.kill()
             else:
                 max_from_index = self.stock['from'].idxmax()  # Get the index of the maximum 'from' value
                 latest_row = self.stock.loc[max_from_index]  # Get the row with the maximum 'from' value
                 # Check if the latest row meets the conditions
                 if latest_row['final_dir'] in ['call', 'put'] and latest_row['Trade_time'] != 0:
-                    if latest_row['Trade_time'] < (TradeData.app_timer - 0.2):
+                    if latest_row['Trade_time'] < (TradeData.get_app_timer() - 0.2):
                         self.start_trading_thread()
             
             logging.info(f"Updated stock database for {self.active_name}.")
@@ -130,7 +130,7 @@ class Candles_Assets(threading.Thread):
     def run(self):
         """Main loop to update candlestick data."""
         logging.info(f"Waiting for API connection for {self.active_name}...")
-        while not self.killed.is_set() and TradeData.API_connected.is_set() and TradeData.OP_Code_event.is_set():
+        while not self.killed.is_set() and TradeData.get_API_connected().is_set() and TradeData.get_OP_Code_event().is_set():
             
             if self.killed.is_set():
                 self.kill()
@@ -144,11 +144,11 @@ class Candles_Assets(threading.Thread):
                         self.update_stock(candles)
                 
                 else:
-                    delay = self.stock['to'].max() - TradeData.app_timer
+                    delay = self.stock['to'].max() - TradeData.get_app_timer()
                     
                     if delay > 0:  # Ensure delay is positive
                         logging.info(f"Scheduling next update for {self.active_name} in {delay} seconds.")
-                        self.schedule_timer = threading.Timer(self.stock['to'].max() - TradeData.app_timer, self.update_stock_with_timer)
+                        self.schedule_timer = threading.Timer(self.stock['to'].max() - TradeData.get_app_timer(), self.update_stock_with_timer)
                         self.schedule_timer.start()
                     else:
                         logging.info(f"Next candle time for {self.active_name} has already passed. Fetching immediately.")
@@ -175,10 +175,10 @@ class Candles_Assets(threading.Thread):
                     self.update_stock(candles)
                 self.cleanup_threads()  # Check for non-alive threads in trading_threads and move them to sleeping_threads
                 
-                delay = self.stock['to'].max() - TradeData.app_timer
+                delay = self.stock['to'].max() - TradeData.get_app_timer()
                 if delay > 0:  # Ensure delay is positive
                     logging.info(f"Scheduling next update for {self.active_name} in {delay} seconds.")
-                    self.schedule_timer = threading.Timer(self.stock['to'].max() - TradeData.app_timer, self.update_stock_with_timer)
+                    self.schedule_timer = threading.Timer(self.stock['to'].max() - TradeData.get_app_timer(), self.update_stock_with_timer)
                     self.schedule_timer.start()
                 else:
                     logging.info(f"Next candle time for {self.active_name} has already passed. Fetching immediately.")
