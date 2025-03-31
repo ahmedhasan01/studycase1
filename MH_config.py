@@ -17,9 +17,6 @@ HEADERS = {
     "sec-fetch-storage-access": "active"
 }
 
-Email = "ahmedhasan01@msn.com"  # User name
-Password = "@hmed1992i"  # User passward
-
 # Trading configuration
 INSTRUMENTS = 'turbo'  # Options: 'turbo' or 'binary'
 CASH_TO_TRADE = 50  # Default amount to trade

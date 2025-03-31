@@ -33,7 +33,7 @@ def main():
 
     # Initialize the API
     money_heist_api = Money_Heist()
-    money_heist_api.API_starter(Email, Password)
+    money_heist_api.API_starter("ahmedhasan01@msn.com", "@hmed1992i")
 
     # List to manage all threads
     threads = []
