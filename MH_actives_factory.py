@@ -10,6 +10,7 @@ class Active_Assets(threading.Thread):
         self.killed = threading.Event()
         self.asset_timer = asset_timer
         self.api = Money_Heist()
+        self.trade_data = TradeData()
         self.Asset_Information = pandas.DataFrame(columns=['active_name', 'active_id', 'status', 'schedule', 'candle_status'])
         self.candle_threads = {}  # Dictionary to store active candle threads
         self.sleeping_threads = []  # List to store reusable sleeping threads
@@ -19,7 +20,7 @@ class Active_Assets(threading.Thread):
     def run(self):
         """Main loop to update active assets and manage candle threads."""
         logging.info("Active Assets updater started. Waiting for API connection...")
-        while not self.killed.is_set() and TradeData.get_API_connected().is_set() and TradeData.get_OP_Code_event().is_set():
+        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set() and self.trade_data.get_OP_Code_event().is_set():
 
             if self.killed.is_set():
                 self.kill()
@@ -32,15 +33,15 @@ class Active_Assets(threading.Thread):
                     self.update_asset_information()
                 else:
                     nearest_schedule = self.Asset_Information['schedule'].min()  # Calculate nearest_schedule
-                    asset_timer_end = self.asset_timer + TradeData.get_app_timer()  # Calculate asset_timer + server_timestamp
+                    asset_timer_end = self.asset_timer + self.trade_data.get_app_timer()  # Calculate asset_timer + server_timestamp
                     next_update_time = min(nearest_schedule, asset_timer_end)  # Determine the minimum between nearest_schedule and asset_timer_end
                     
-                    if TradeData.get_app_timer() >= next_update_time:  # Check if server_timestamp is greater than or equal to next_update_time
+                    if self.trade_data.get_app_timer() >= next_update_time:  # Check if server_timestamp is greater than or equal to next_update_time
                         logging.info("Scheduled update time reached. Updating asset information.")
                         self.update_asset_information()
                     else:
                         # Calculate delay for threading.Timer
-                        delay = next_update_time - TradeData.get_app_timer()
+                        delay = next_update_time - self.trade_data.get_app_timer()
                         logging.info(f"Scheduling next update in {delay} seconds.")
                         threading.Timer(delay, self.update_asset_information).start()
 
@@ -66,7 +67,7 @@ class Active_Assets(threading.Thread):
     def update_asset_information(self):
         """Update the Asset_Information DataFrame with the latest asset data."""
         asset_status = self.api.get_all_open_time()
-        updating_OP_Code = TradeData.get_OP_Code()
+        updating_OP_Code = self.trade_data.get_OP_Code()
         sched_init = self.api.get_all_init_v2()
         for active_name, status_data in asset_status.items():
             active_id = updating_OP_Code.get(active_name, None)  # Use OP_Code from Money_Heist_API.py
@@ -87,7 +88,7 @@ class Active_Assets(threading.Thread):
         """Get the nearest schedule timestamp for the given active_id."""
         try:
             schedules_list = sched_init[str(active_id)]['schedule']
-            nearest_schedule = min([x for sublist in schedules_list for x in sublist if x >= TradeData.get_app_timer()])
+            nearest_schedule = min([x for sublist in schedules_list for x in sublist if x >= self.trade_data.get_app_timer()])
             gc.collect()
             return nearest_schedule  # Return a single value
         except Exception as e:
@@ -114,7 +115,7 @@ class Active_Assets(threading.Thread):
                     self.Asset_Information.at[index, 'candle_status'] = False
                     logging.info(f"Candle thread for {active_name} killed and moved to killing threads.")
 
-                elif status and TradeData.get_app_timer() < (schedule - 5*60) and not candle_status:
+                elif status and self.trade_data.get_app_timer() < (schedule - 5*60) and not candle_status:
                     # If status is True, schedule is not reached, and candle_status is False, start a thread
                     # Check system resources before starting thread
                     cpu_usage = psutil.cpu_percent(interval=0.1)

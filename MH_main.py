@@ -25,7 +25,7 @@ def main():
     update_iqoptionapi()
 
     # Load previous loss records
-    TradeData.load_loss_records()
+    TradeData().load_loss_records()
 
     # Initialize and start GC Manager
     gc_manager = GCManager()

@@ -9,6 +9,7 @@ class Trading_Assets(threading.Thread):
         threading.Thread.__init__(self)
         self.killed = threading.Event()
         self.api = Money_Heist()
+        self.trade_data = TradeData()
         self.active_name = active_name
         self.schedule = schedule
         self.trade_signal = trade_signal  # 'call' or 'put'
@@ -18,11 +19,11 @@ class Trading_Assets(threading.Thread):
 
     def run(self):
         """Main loop to execute the trade at the precise time."""
-        while not self.killed.is_set() and TradeData.API_connected.is_set():
+        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set():
             
             try:
                 # Check if trade_time is in the past
-                if self.trade_time < TradeData.app_timer:
+                if self.trade_time < self.trade_data.get_app_timer():
                     logging.warning(f"Trade time for {self.active_name} has already passed. Killing thread.")
                     self.kill()
                     return
@@ -32,13 +33,13 @@ class Trading_Assets(threading.Thread):
                     break
 
                 # Check if the trade has a matching loss record and adjust trade_signal
-                if TradeData.check_loss_record_match(self.stock_data):
+                if self.trade_data.check_loss_record_match(self.stock_data):
                     original_signal = self.trade_signal
                     self.trade_signal = "call" if self.trade_signal == "put" else "put"
                     logging.info(f"Trade signal flipped from {original_signal} to {self.trade_signal} for {self.active_name} due to loss record match.")
 
                 # Calculate the delay until the trade_time
-                delay = self.trade_time - TradeData.app_timer
+                delay = self.trade_time - self.trade_data.get_app_timer()
 
                 if delay > 0:
                     # Use threading.Timer to get close to the trade_time
@@ -53,10 +54,10 @@ class Trading_Assets(threading.Thread):
 
     def precise_trade(self):
         """Execute the trade with millisecond precision."""
-        while not self.killed.is_set() and TradeData.API_connected.is_set():
+        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set():
             # Busy-wait loop for the final milliseconds
-            while TradeData.app_timer < self.trade_time:
-                self.killed.wait(max(0, self.trade_time - TradeData.app_timer - 0.001))  # Avoid overshooting
+            while self.trade_data.app_timer < self.trade_time:
+                self.killed.wait(max(0, self.trade_time - self.trade_data.get_app_timer() - 0.001))  # Avoid overshooting
 
             if self.killed.is_set():
                 break
@@ -66,7 +67,7 @@ class Trading_Assets(threading.Thread):
                 success, id = self.api.buy(CASH_TO_TRADE, self.active_name, self.trade_signal, DURATIONS)
                 if success:
                     logging.info(f"Trade executed successfully for {self.active_name}. Trade ID: {id}")
-                    TradeData.update_trade_ids(id, self.stock_data)
+                    self.trade_data.update_trade_ids(id, self.stock_data)
                 else:
                     logging.error(f"Failed to execute trade for {self.active_name}.")
             except Exception as e:

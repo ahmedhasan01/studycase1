@@ -14,6 +14,7 @@ class Check_Email(threading.Thread):
         self.signing_timer = 60  # Timer interval in seconds
         self.signing_timering = None
         self.api = Money_Heist()
+        self.trade_data = TradeData()
 
     def get_current_wifi(self):
         """Retrieve the current Wi-Fi network name using PowerShell."""
@@ -35,14 +36,14 @@ class Check_Email(threading.Thread):
                 return True
             else:
                 logging.warning(f"Unexpected status code: {response.status_code}")
-                TradeData.API_connection(0)
+                self.trade_data.API_connection(0)
                 return False
         except requests.RequestException as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.warning(f"No internet connection detected: {e}")
             return False
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Unexpected error checking network connection: {e}")
             return False
 
@@ -52,10 +53,10 @@ class Check_Email(threading.Thread):
             subprocess.run(["powershell.exe", "netsh wlan connect name=" + self.current_wifi], shell=True, check=True)
             logging.warning(f"Attempting to reconnect to Wi-Fi: {self.current_wifi}")
         except subprocess.CalledProcessError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to reconnect to Wi-Fi: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Unexpected error reconnecting to Wi-Fi: {e}")
 
     def start_signing_timer(self):
@@ -86,7 +87,7 @@ class Check_Email(threading.Thread):
             logging.info("Check Your Internet Connection")
             self.kill()
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
             logging.error(f"Unexpected error handling network issues: {e}")
@@ -96,7 +97,7 @@ class Check_Email(threading.Thread):
     def handle_api_connection(self):
         """Handle API connection issues."""
         try:
-            if not TradeData.get_API_connected().is_set():
+            if not self.trade_data.get_API_connected().is_set():
                 logging.warning("API is disconnected. Attempting to reconnect...")
                 if not self.api.connect():
                     self.handle_api_retries()
@@ -107,7 +108,7 @@ class Check_Email(threading.Thread):
                 logging.info("API connection is active.")
                 self.start_signing_timer()
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
             logging.error(f"Unexpected error handling API connection: {e}")
@@ -142,7 +143,7 @@ class Check_Email(threading.Thread):
             try:
                 if not self.check_network_connection():
                     self.handle_network_issues()
-                elif not TradeData.get_API_connected().is_set():
+                elif not self.trade_data.get_API_connected().is_set():
                     self.handle_api_connection()
                 
                 if self.killed.is_set():
@@ -153,7 +154,7 @@ class Check_Email(threading.Thread):
                 # Sleep for a short interval to avoid busy-waiting
                 self.killed.wait(1)
             except ConnectionError as e:
-                TradeData.API_connection(0)
+                self.trade_data.API_connection(0)
                 logging.error(f"Connection error: {e}")
             except Exception as e:
                 logging.error(f"Unexpected error in main loop: {e}")
@@ -162,7 +163,7 @@ class Check_Email(threading.Thread):
     
     def kill(self):
         """Kill the thread gracefully."""
-        TradeData.API_connection(0)
+        self.trade_data.API_connection(0)
         self.killed.set()
         if self.signing_timering:
             self.signing_timering.cancel()

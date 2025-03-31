@@ -9,16 +9,17 @@ class OPCodeUpdater(threading.Thread):
         threading.Thread.__init__(self)
         self.killed = threading.Event()  # Used for thread termination
         self.api = Money_Heist()
+        self.trade_data = TradeData()
         self.update_interval = update_interval
 
     def fetch_op_code(self):
         """Fetch OP_code from the API and update the global OP_Code."""
         new_op_code = self.api.get_all_ACTIVES_OPCODE()
         
-        if new_op_code != TradeData.get_OP_Code():  # Only update if there's a change
-            TradeData.update_OP_Code(new_op_code)
+        if new_op_code != self.trade_data.get_OP_Code():  # Only update if there's a change
+            self.trade_data.update_OP_Code(new_op_code)
             self.update_constants_file(new_op_code)
-            TradeData.set_OP_Code()
+            self.trade_data.set_OP_Code()
             logging.info("OP_Code updated successfully.")
         else:
             logging.info("OP_Code unchanged. No update needed.")
@@ -56,7 +57,7 @@ class OPCodeUpdater(threading.Thread):
     def run(self):
         """Main loop to update OP_code periodically."""
         logging.info("OPCodeUpdater started. Waiting for API connection...")
-        while not self.killed.is_set() and TradeData.get_API_connected().is_set():
+        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set():
             
             if self.killed.is_set():
                 self.kill()
@@ -64,7 +65,7 @@ class OPCodeUpdater(threading.Thread):
 
             try:
                 # Fetch OP_code if it is None or every 6 hours
-                if TradeData.get_OP_Code() is None:
+                if self.trade_data.get_OP_Code() is None:
                     self.fetch_op_code()
                 else:
                     self.killed.wait(self.update_interval)  # Wait for the update interval, but wake up early if killed

@@ -10,27 +10,14 @@ class Money_Heist:
     fetch candlestick data, and place trades. It uses a singleton pattern to ensure only one
     instance of the API is created.
     """
-    money_heist = None  # Singleton instance of IQOption API
-    
-    @classmethod
-    def API_starter(cls, Email, Password):
-        """
-        Initialize the IQ Option API connection.
+    def __init__(self, Email=None, Password=None):
         
-        Args:
-            email (str): IQ Option account email.
-            password (str): IQ Option account password.
-        
-        Returns:
-            IQOption: An instance of the IQOption API.
-        """
         logging.info("Initializing IQ Option API connection.")
-        cls.money_heist = IQ_Option(Email, Password)
-        cls.money_heist.set_session(header=HEADERS, cookie={})
-        return cls.money_heist
-    
-    @classmethod
-    def connect(cls):
+        self.money_heist = IQ_Option(Email, Password)
+        self.money_heist.set_session(header=HEADERS, cookie={})
+        self.trade_data = TradeData()
+
+    def connect(self):
         """
         Connect to the IQ Option API.
         
@@ -39,25 +26,24 @@ class Money_Heist:
         """
         try:
             logging.info("Connecting to IQ Option API.")
-            success, reason = cls.money_heist.connect()  # Unpack the tuple
+            success, reason = self.money_heist.connect()  # Unpack the tuple
             if success:
-                TradeData.API_connection(1)
+                self.trade_data.API_connection(1)
                 logging.info("Successfully connected to IQ Option API.")
                 return True
             else:
-                TradeData.API_connection(0)
+                self.trade_data.API_connection(0)
                 logging.error(f"Failed to connect to IQ Option API. Reason: {reason}")
                 return False
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to connect to IQ Option API: {e}")
             return False
-    
-    @classmethod
-    def check_connection(cls):
+
+    def check_connection(self):
         """
         Check if the API connection is active.
         
@@ -65,24 +51,23 @@ class Money_Heist:
             bool: True if connected, False otherwise.
         """
         try:
-            if cls.money_heist and cls.money_heist.check_connect():
-                TradeData.API_connection(1)
+            if self.money_heist and self.money_heist.check_connect():
+                self.trade_data.API_connection(1)
                 logging.info("API connection is active.")
                 return True
             else:
-                TradeData.API_connection(0)
+                self.trade_data.API_connection(0)
                 logging.warning("API connection is not active.")
                 return False
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to check API connection: {e}")
             return False
-    
-    @classmethod
-    def get_server_timestamp(cls):
+
+    def get_server_timestamp(self):
         """
         Retrieve Server Time Stamp.
         
@@ -90,18 +75,17 @@ class Money_Heist:
             float: Server Time Stamp.
         """
         try:
-            time_stamp = cls.money_heist.get_server_timestamp()
+            time_stamp = self.money_heist.get_server_timestamp()
             return time_stamp
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch Server Time Stamp: {e}")
             return int()  # Return an empty int on failure
-    
-    @classmethod
-    def get_profile_ansyc(cls):
+
+    def get_profile_ansyc(self):
         """
         Retrieve the profile information asynchronously.
         
@@ -110,19 +94,18 @@ class Money_Heist:
         """
         try:
             logging.info("Fetching profile information asynchronously.")
-            profile = cls.money_heist.get_profile_ansyc()
+            profile = self.money_heist.get_profile_ansyc()
             gc.collect()  # Force garbage collection
             return profile
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch profile information: {e}")
             return {}  # Return an empty dictionary on failure
-    
-    @classmethod
-    def get_balance_mode(cls):
+
+    def get_balance_mode(self):
         """
         Retrieve the balance mode.
         
@@ -131,19 +114,18 @@ class Money_Heist:
         """
         try:
             logging.info("Fetching balance mode.")
-            balance_mode = cls.money_heist.get_balance_mode()
+            balance_mode = self.money_heist.get_balance_mode()
             gc.collect()  # Force garbage collection
             return balance_mode
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch balance mode: {e}")
             return ""  # Return an empty string on failure
-    
-    @classmethod
-    def get_balance_id(cls):
+
+    def get_balance_id(self):
         """
         Retrieve the balance ID.
         
@@ -152,19 +134,18 @@ class Money_Heist:
         """
         try:
             logging.info("Fetching balance ID.")
-            balance_id = cls.money_heist.get_balance_id()
+            balance_id = self.money_heist.get_balance_id()
             gc.collect()  # Force garbage collection
             return balance_id
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch balance ID: {e}")
             return int()  # Return an empty string on failure
-    
-    @classmethod
-    def get_currency(cls):
+
+    def get_currency(self):
         """
         Retrieve the account currency.
         
@@ -172,20 +153,19 @@ class Money_Heist:
             str: The account currency.
         """
         try:
-            currency = cls.money_heist.get_currency()
+            currency = self.money_heist.get_currency()
             logging.info(f"Fetching account currency is {currency}.")
             gc.collect()  # Force garbage collection
             return currency
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch currency: {e}")
             return ""  # Return an empty string on failure
-    
-    @classmethod
-    def get_all_ACTIVES_OPCODE(cls):
+
+    def get_all_ACTIVES_OPCODE(self):
         """
         Retrieve All ACTIVES OPCODE.
         
@@ -194,21 +174,20 @@ class Money_Heist:
         """
         try:
             logging.info("Fetching all actives opcode.")
-            cls.money_heist.update_ACTIVES_OPCODE()
-            OP_Code = cls.money_heist.get_all_ACTIVES_OPCODE()
+            self.money_heist.update_ACTIVES_OPCODE()
+            OP_Code = self.money_heist.get_all_ACTIVES_OPCODE()
             logging.info("OP_Code updated successfully.")
             gc.collect()  # Force garbage collection
             return OP_Code
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch all actives opcode: {e}")
             return {}  # Return an empty dictionary on failure
-        
-    @classmethod
-    def get_all_init_v2(cls):
+
+    def get_all_init_v2(self):
         """
         Retrieve All ACTIVES schedule.
         
@@ -217,19 +196,18 @@ class Money_Heist:
         """
         try:
             logging.info("Fetching actives schedule.")
-            all_init = cls.money_heist.get_all_init_v2()[INSTRUMENTS]['actives']
+            all_init = self.money_heist.get_all_init_v2()[INSTRUMENTS]['actives']
             gc.collect()  # Force garbage collection
             return all_init
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch actives schedule : {e}")
             return {}  # Return an empty dictionary on failure
-    
-    @classmethod
-    def get_all_open_time(cls):
+
+    def get_all_open_time(self):
         """
         Retrieve the all actives names.
         
@@ -238,19 +216,18 @@ class Money_Heist:
         """
         try:
             logging.info("Fetching all actives names.")
-            actives = cls.money_heist.get_all_open_time()[INSTRUMENTS]
+            actives = self.money_heist.get_all_open_time()[INSTRUMENTS]
             gc.collect()  # Force garbage collection
             return actives
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch actives names: {e}")
             return {}  # Return an empty dictionary on failure
-    
-    @classmethod
-    def get_candles(cls, asset, interval, count):
+
+    def get_candles(self, asset, interval, count):
         """
         Retrieve candlestick data for a specific asset.
         
@@ -264,19 +241,18 @@ class Money_Heist:
         """
         try:
             logging.info(f"Retrieving {count} candles for {asset} with interval {interval} seconds.")
-            candles = cls.money_heist.get_candles(asset, interval, count)
+            candles = self.money_heist.get_candles(asset, interval, count)
             gc.collect()  # Force garbage collection
             return candles
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch {asset} candles: {e}")
             return []  # Return an empty list on failure
-    
-    @classmethod
-    def buy(cls, amount, active, direction, duration):
+
+    def buy(self, amount, active, direction, duration):
         """
         Place a trade on the IQ Option platform.
         
@@ -291,20 +267,19 @@ class Money_Heist:
             int: The trade ID if successful, None otherwise.
         """
         try:
-            success, id = cls.money_heist.buy(amount, active, direction, duration)
+            success, id = self.money_heist.buy(amount, active, direction, duration)
             logging.info(f"Placing {direction} trade on {active} for {duration} minutes with amount {amount}.")
             gc.collect()  # Force garbage collection
             return success, id
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to place {direction} trade on {active}: {e}")
             return False, None  # Return False, None on failure
-    
-    @classmethod
-    def get_balance(cls):
+
+    def get_balance(self):
         """
         Retrieve the account balance.
         
@@ -312,20 +287,19 @@ class Money_Heist:
             float: The account balance.
         """
         try:
-            balance = cls.money_heist.get_balance()
+            balance = self.money_heist.get_balance()
             logging.info(f"Account balance: {balance}")
             gc.collect()  # Force garbage collection
             return balance
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch account balance: {e}")
             return 0.0  # Return 0.0 on failure
-    
-    @classmethod
-    def get_optioninfo(cls, count):
+
+    def get_optioninfo(self, count):
         """
         Retrieve option info for a specific count.
         
@@ -336,25 +310,24 @@ class Money_Heist:
             dict: A dictionary containing the option info.
         """
         try:
-            check_win = cls.money_heist.get_optioninfo(count)['msg']['result']
+            check_win = self.money_heist.get_optioninfo(count)['msg']['result']
             logging.info(f"Get Option Information requested successfully")
             gc.collect()  # Force garbage collection
             return check_win
         except ConnectionError as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
-            TradeData.API_connection(0)
+            self.trade_data.API_connection(0)
             logging.error(f"Get Option Information failed to request: {e}")
             return {}
-    
-    @classmethod
-    def close_connection(cls):
+
+    def close_connection(self):
         """
         Close the API connection.
         """
-        TradeData.API_connection(0)
-        cls.money_heist.logout()
+        self.trade_data.API_connection(0)
+        self.money_heist.logout()
         logging.info("Closing IQ Option API connection.")
         gc.collect()  # Force garbage collection
         raise SystemExit("API connection closed.")
