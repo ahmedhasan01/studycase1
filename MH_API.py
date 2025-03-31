@@ -12,6 +12,8 @@ class Money_Heist:
     """
     def __init__(self, Email=None, Password=None):
         
+        if not Email or not Password:
+            raise ValueError("Email and Password must be provided")
         logging.info("Initializing IQ Option API connection.")
         self.money_heist = IQ_Option(Email, Password)
         self.money_heist.set_session(header=HEADERS, cookie={})
