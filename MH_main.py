@@ -11,7 +11,6 @@ from MH_opcode_factory import OPCodeUpdater
 from MH_profile_factory import Profile
 from MH_actives_factory import Active_Assets
 from MH_checkwin_factory import CheckWin
-from MH_config import Email, Password
 from MH_api_updater import update_iqoptionapi
 
 # Configure Logging
