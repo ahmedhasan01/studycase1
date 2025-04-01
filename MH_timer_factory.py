@@ -13,7 +13,7 @@ class ServerTimeSynchronizer(threading.Thread):
             sync_interval: The interval (in seconds) between server timestamp synchronization requests.
         """
         threading.Thread.__init__(self)
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
         self.sync_interval = sync_interval  # Time between API requests (in seconds)
         self.offset = 0  # Difference between server timestamp and local time

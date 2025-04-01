@@ -8,7 +8,7 @@ class Trading_Assets(threading.Thread):
     def __init__(self, active_name: str, schedule: float, trade_signal: str, trade_time: float, stock_data: dict):
         threading.Thread.__init__(self)
         self.killed = threading.Event()
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
         self.active_name = active_name
         self.schedule = schedule

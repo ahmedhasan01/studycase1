@@ -8,7 +8,7 @@ class CheckWin(threading.Thread):
         threading.Thread.__init__(self)
         self.killed = threading.Event()
         self.interval = 5 * 60  # 5 minutes in seconds
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
 
     def run(self):

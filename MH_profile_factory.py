@@ -27,7 +27,7 @@ class Profile(threading.Thread):
             'balance',
             'deposit_count'
         ]
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
 
     def run(self):

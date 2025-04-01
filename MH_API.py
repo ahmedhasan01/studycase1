@@ -1,4 +1,4 @@
-from MH_libraries import IQ_Option, logging, gc
+from MH_libraries import IQ_Option, logging, gc, time
 from MH_savings import TradeData
 from MH_config import HEADERS, INSTRUMENTS
 
@@ -10,16 +10,39 @@ class Money_Heist:
     fetch candlestick data, and place trades. It uses a singleton pattern to ensure only one
     instance of the API is created.
     """
-    def __init__(self, Email=None, Password=None):
+    """Singleton class to handle IQ Option API interactions."""
+    _instance = None
+    
+    def __new__(cls, Email: str, Password: str):
+        if cls._instance is None:
+            cls._instance = super(Money_Heist, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self, Email: str, Password: str):
+        if self._initialized:
+            return
         
         if not Email or not Password:
             raise ValueError("Email and Password must be provided")
+        
         logging.info("Initializing IQ Option API connection.")
         self.money_heist = IQ_Option(Email, Password)
-        self.money_heist.set_session(header=HEADERS, cookie={})
         self.trade_data = TradeData()
+        self.last_connection_time = None
+        self._initialized = True
+        
+        self.connect()
 
     def connect(self):
+        """Connect to the IQ Option API with session refresh."""
+        if self.last_connection_time is None or time.time() - self.last_connection_time > 1800:
+            logging.info("Session expired. Reconnecting...")
+            self._attempt_connection()
+        elif not self.trade_data.get_API_connected().is_set():
+            self._attempt_connection()
+
+    def _attempt_connection(self) -> bool:
         """
         Connect to the IQ Option API.
         
@@ -28,24 +51,28 @@ class Money_Heist:
         """
         try:
             logging.info("Connecting to IQ Option API.")
-            success, reason = self.money_heist.connect()  # Unpack the tuple
+            success, reason = self.money_heist.connect()
+            self.money_heist.set_session(header=HEADERS, cookie={})
             if success:
                 self.trade_data.API_connection(1)
+                self.last_connection_time = time.time()
                 logging.info("Successfully connected to IQ Option API.")
                 return True
             else:
                 self.trade_data.API_connection(0)
-                logging.error(f"Failed to connect to IQ Option API. Reason: {reason}")
+                logging.warning(f"Failed to connect - {reason}")
                 return False
         except ConnectionError as e:
             self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
+            return False
         except Exception as e:
             self.trade_data.API_connection(0)
             logging.error(f"Failed to connect to IQ Option API: {e}")
             return False
 
-    def check_connection(self):
+    def check_connection(self) -> bool:
+        """Connects to API. Thread-safe through TradeData locks."""
         """
         Check if the API connection is active.
         
@@ -53,7 +80,7 @@ class Money_Heist:
             bool: True if connected, False otherwise.
         """
         try:
-            if self.money_heist and self.money_heist.check_connect():
+            if self.money_heist.check_connect():
                 self.trade_data.API_connection(1)
                 logging.info("API connection is active.")
                 return True
@@ -69,7 +96,7 @@ class Money_Heist:
             logging.error(f"Failed to check API connection: {e}")
             return False
 
-    def get_server_timestamp(self):
+    def get_server_timestamp(self) -> float:
         """
         Retrieve Server Time Stamp.
         
@@ -77,17 +104,16 @@ class Money_Heist:
             float: Server Time Stamp.
         """
         try:
-            time_stamp = self.money_heist.get_server_timestamp()
-            return time_stamp
+            return self.money_heist.get_server_timestamp()
         except ConnectionError as e:
             self.trade_data.API_connection(0)
             logging.error(f"Connection error: {e}")
         except Exception as e:
             self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch Server Time Stamp: {e}")
-            return int()  # Return an empty int on failure
+            return 0  # Return 0 on failure
 
-    def get_profile_ansyc(self):
+    def get_profile_ansyc(self) -> dict:
         """
         Retrieve the profile information asynchronously.
         
@@ -107,7 +133,7 @@ class Money_Heist:
             logging.error(f"Failed to fetch profile information: {e}")
             return {}  # Return an empty dictionary on failure
 
-    def get_balance_mode(self):
+    def get_balance_mode(self) -> str:
         """
         Retrieve the balance mode.
         
@@ -127,7 +153,7 @@ class Money_Heist:
             logging.error(f"Failed to fetch balance mode: {e}")
             return ""  # Return an empty string on failure
 
-    def get_balance_id(self):
+    def get_balance_id(self) -> int:
         """
         Retrieve the balance ID.
         
@@ -281,7 +307,7 @@ class Money_Heist:
             logging.error(f"Failed to place {direction} trade on {active}: {e}")
             return False, None  # Return False, None on failure
 
-    def get_balance(self):
+    def get_balance(self) -> float:
         """
         Retrieve the account balance.
         

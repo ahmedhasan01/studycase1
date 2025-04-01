@@ -16,6 +16,8 @@ from MH_api_updater import update_iqoptionapi
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+# Initialize the API
+money_heist_api = Money_Heist("ahmedhasan01@msn.com", "@hmed1992i")
 
 def main():
     """Main function to initialize and start all threads."""
@@ -29,10 +31,6 @@ def main():
     # Initialize and start GC Manager
     gc_manager = GCManager()
     gc_manager.start()
-
-    # Initialize the API
-    money_heist_api = Money_Heist()
-    money_heist_api.API_starter("ahmedhasan01@msn.com", "@hmed1992i")
 
     # List to manage all threads
     threads = []

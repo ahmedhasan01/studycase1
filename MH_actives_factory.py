@@ -9,7 +9,7 @@ class Active_Assets(threading.Thread):
         threading.Thread.__init__(self)
         self.killed = threading.Event()
         self.asset_timer = asset_timer
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
         self.Asset_Information = pandas.DataFrame(columns=['active_name', 'active_id', 'status', 'schedule', 'candle_status'])
         self.candle_threads = {}  # Dictionary to store active candle threads

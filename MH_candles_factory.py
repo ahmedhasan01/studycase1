@@ -14,7 +14,7 @@ class Candles_Assets(threading.Thread):
         self.schedule = schedule
         self.interval = DURATIONS * 60
         self.candles_count = CANDLES_COUNT
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
         self.stock = pandas.DataFrame()  # DataFrame to store candlestick data
         self.trading_threads = []  # List to store active trading threads

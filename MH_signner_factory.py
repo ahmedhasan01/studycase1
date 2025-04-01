@@ -13,7 +13,7 @@ class Check_Email(threading.Thread):
         self.network_attempt_failed = 0
         self.signing_timer = 60  # Timer interval in seconds
         self.signing_timering = None
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
 
     def get_current_wifi(self):

@@ -8,7 +8,7 @@ class OPCodeUpdater(threading.Thread):
     def __init__(self, update_interval = 6 * 3600):  # 6 hours in seconds
         threading.Thread.__init__(self)
         self.killed = threading.Event()  # Used for thread termination
-        self.api = Money_Heist()
+        self.api = Money_Heist._instance  # Access the already initialized instance
         self.trade_data = TradeData()
         self.update_interval = update_interval
 
