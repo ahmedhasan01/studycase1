@@ -57,11 +57,17 @@ class OPCodeUpdater(threading.Thread):
     def run(self):
         """Main loop to update OP_code periodically."""
         logging.info("OPCodeUpdater started. Waiting for API connection...")
-        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set():
-            
+        while not self.killed.is_set():
+
+            # Wait until the API connection is established or the killed flag is set
+            while not self.trade_data.get_API_connected().is_set():
+                if self.killed.wait(1):
+                    self.kill()
+                    return  # Exit immediately
+
             if self.killed.is_set():
                 self.kill()
-                break  # Exit if killed
+                return  # Exit if killed
 
             try:
                 # Fetch OP_code if it is None or every 6 hours
@@ -75,7 +81,7 @@ class OPCodeUpdater(threading.Thread):
             finally:
                 if self.killed.is_set():
                     self.kill()
-                    break  # Exit if killed
+                    return  # Exit if killed
 
         logging.info("OPCodeUpdater thread stopped.")
         gc.collect()  # Clean up resources before exiting

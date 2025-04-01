@@ -13,13 +13,19 @@ class CheckWin(threading.Thread):
 
     def run(self):
         """Main execution loop with 5-minute intervals"""
-        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set():
+        while not self.killed.is_set():
             
-            if self.killed.is_set():
-                self.kill()
-                break
+        # Wait until the API connection is established or the killed flag is set
+            while not self.trade_data.get_API_connected().is_set():
+                if self.killed.wait(1):
+                    self.kill()
+                    return  # Exit immediately
 
             self.killed.wait(self.interval)  # Initial delay
+
+            if self.killed.is_set():
+                self.kill()
+                return  # Exit immediately
 
             try:
                 if self.trade_data.get_API_connected().is_set():
@@ -29,9 +35,7 @@ class CheckWin(threading.Thread):
             finally:
                 if self.killed.is_set():
                     self.kill()
-                    break
-            
-            self.killed.wait(self.interval)
+                    return  # Exit immediately
 
     def process_trades(self):
         """Core trade processing logic"""
@@ -91,4 +95,4 @@ class CheckWin(threading.Thread):
         self.killed.set()
         self.process_trades()
         gc.collect()
-        logging.info("CheckWin thread stopped")
+        logging.info("CheckWin thread stopped gracefully.")

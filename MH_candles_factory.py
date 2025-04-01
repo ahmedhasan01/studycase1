@@ -131,12 +131,18 @@ class Candles_Assets(threading.Thread):
     def run(self):
         """Main loop to update candlestick data."""
         logging.info(f"Waiting for API connection for {self.active_name}...")
-        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set() and self.trade_data.get_OP_Code_event().is_set():
-            
+        while not self.killed.is_set():
+
+            # Wait until the API connection is established or the killed flag is set
+            while not self.trade_data.get_API_connected().is_set() and not self.trade_data.get_OP_Code_event().is_set():
+                if self.killed.wait(1):  # Waits up to 1 second but exits if killed
+                    self.kill()
+                    return  # Exit immediately
+
             if self.killed.is_set():
                 self.kill()
-                break  # Exit if killed
-            
+                return  # Exit if killed
+
             try:
                 if self.stock.empty:
                     # Fetch full candles_count if DataFrame is empty
@@ -164,7 +170,7 @@ class Candles_Assets(threading.Thread):
             finally:
                 if self.killed.is_set():
                     self.kill()
-                    break  # Exit if killed
+                    return  # Exit if killed
 
     def update_stock_with_timer(self):
         """Fetch and update stock data when the timer triggers."""

@@ -16,14 +16,14 @@ from MH_api_updater import update_iqoptionapi
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+# update iq option api
+update_iqoptionapi()
+
 # Initialize the API
 money_heist_api = Money_Heist("ahmedhasan01@msn.com", "@hmed1992i")
 
 def main():
     """Main function to initialize and start all threads."""
-
-    # update iq option api
-    update_iqoptionapi()
 
     # Load previous loss records
     TradeData().load_loss_records()

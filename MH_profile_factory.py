@@ -33,11 +33,17 @@ class Profile(threading.Thread):
     def run(self):
         """Main loop to fetch and update profile information."""
         logging.info("Profile Factory started. Waiting for API connection...")
-        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set():  # Check for thread termination
+        while not self.killed.is_set():  # Check for thread termination
+
+            # Wait until the API connection is established or the killed flag is set
+            while not self.trade_data.get_API_connected().is_set():
+                if self.killed.wait(1):
+                    self.kill()
+                    return  # Exit immediately
 
             if self.killed.is_set():
                 self.kill()
-                break
+                return
 
             # Fetch profile information
             try:
@@ -48,7 +54,7 @@ class Profile(threading.Thread):
             finally:
                 if self.killed.is_set():
                     self.kill()
-                    break
+                    return
 
             # Schedule the next profile update for the next day
             self.schedule_daily_update()

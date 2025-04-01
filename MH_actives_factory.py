@@ -20,11 +20,17 @@ class Active_Assets(threading.Thread):
     def run(self):
         """Main loop to update active assets and manage candle threads."""
         logging.info("Active Assets updater started. Waiting for API connection...")
-        while not self.killed.is_set() and self.trade_data.get_API_connected().is_set() and self.trade_data.get_OP_Code_event().is_set():
+        while not self.killed.is_set():
+
+            # Wait until the API connection is established or the killed flag is set
+            while not self.trade_data.get_API_connected().is_set() and not self.trade_data.get_OP_Code_event().is_set():
+                if self.killed.wait(1):
+                    self.kill()
+                    return  # Exit immediately
 
             if self.killed.is_set():
                 self.kill()
-                break
+                return
 
             try:
                 # Update immediately if Asset_Information is empty
@@ -59,7 +65,7 @@ class Active_Assets(threading.Thread):
                 self.asset_timer = 10 * 60  # Reset to 10 minutes
                 if self.killed.is_set():
                     self.kill()
-                    break
+                    return
 
         logging.info("Active assets thread stopped gracefully.")
         gc.collect()  # Clean up resources before exiting
