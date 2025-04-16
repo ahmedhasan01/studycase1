@@ -1,17 +1,17 @@
-from MH_libraries import threading, logging, pandas, gc, psutil
+from MH_libraries import threading, logging, gc, psutil
 from MH_API import Money_Heist
 from MH_savings import TradeData
-from MH_candles_factory import Candles_Assets
+from MH_candles_factory import Candles_Assets, Maximum_assets
 
 
 class Active_Assets(threading.Thread):
     def __init__(self, asset_timer=10*60):  # Configurable timer interval
-        threading.Thread.__init__(self)
+        super().__init__(daemon=True)  # Proper initialization
         self.killed = threading.Event()
         self.asset_timer = asset_timer
         self.api = Money_Heist._instance  # Access the already initialized instance
-        self.trade_data = TradeData()
-        self.Asset_Information = pandas.DataFrame(columns=['active_name', 'active_id', 'status', 'schedule', 'candle_status'])
+        self.trade_data = TradeData._instance or TradeData()  # Access the already initialized instance
+        self.Asset_Information = {}
         self.candle_threads = {}  # Dictionary to store active candle threads
         self.sleeping_threads = []  # List to store reusable sleeping threads
         self.max_cpu_usage = 90  # Maximum allowed CPU usage (in percentage)
@@ -19,11 +19,11 @@ class Active_Assets(threading.Thread):
 
     def run(self):
         """Main loop to update active assets and manage candle threads."""
-        logging.info("Active Assets updater started. Waiting for API connection...")
         while not self.killed.is_set():
 
             # Wait until the API connection is established or the killed flag is set
-            while not self.trade_data.get_API_connected().is_set() and not self.trade_data.get_OP_Code_event().is_set():
+            while not (self.trade_data.get_API_connected().is_set() and self.trade_data.get_OP_Code_event().is_set()) or self.trade_data.get_app_timer() == 0:
+                logging.info("Active Assets updater started. Waiting for API connection...")
                 if self.killed.wait(1):
                     self.kill()
                     return  # Exit immediately
@@ -34,28 +34,11 @@ class Active_Assets(threading.Thread):
 
             try:
                 # Update immediately if Asset_Information is empty
-                if self.Asset_Information.empty:
-                    logging.info("Asset_Information is empty. Updating immediately.")
-                    self.update_asset_information()
+                if not self.Asset_Information:
+                    logging.info("No assets found. Updating immediately.")
+                    self._update_assets()
                 else:
-                    nearest_schedule = self.Asset_Information['schedule'].min()  # Calculate nearest_schedule
-                    asset_timer_end = self.asset_timer + self.trade_data.get_app_timer()  # Calculate asset_timer + server_timestamp
-                    next_update_time = min(nearest_schedule, asset_timer_end)  # Determine the minimum between nearest_schedule and asset_timer_end
-                    
-                    if self.trade_data.get_app_timer() >= next_update_time:  # Check if server_timestamp is greater than or equal to next_update_time
-                        logging.info("Scheduled update time reached. Updating asset information.")
-                        self.update_asset_information()
-                    else:
-                        # Calculate delay for threading.Timer
-                        delay = next_update_time - self.trade_data.get_app_timer()
-                        logging.info(f"Scheduling next update in {delay} seconds.")
-                        threading.Timer(delay, self.update_asset_information).start()
-
-                # Manage candle threads based on asset status and schedule
-                self.manage_candle_threads()
-
-                # Move fully killed threads from killing_threads to sleeping_threads
-                self.cleanup_live_threads()
+                    self._process_scheduled_update()
 
                 logging.info("Active assets and candle threads updated successfully.")
             except Exception as e:
@@ -70,61 +53,100 @@ class Active_Assets(threading.Thread):
         logging.info("Active assets thread stopped gracefully.")
         gc.collect()  # Clean up resources before exiting
 
-    def update_asset_information(self):
+    def _update_assets(self):
         """Update the Asset_Information DataFrame with the latest asset data."""
         asset_status = self.api.get_all_open_time()
         updating_OP_Code = self.trade_data.get_OP_Code()
         sched_init = self.api.get_all_init_v2()
+
         for active_name, status_data in asset_status.items():
-            active_id = updating_OP_Code.get(active_name, None)  # Use OP_Code from Money_Heist_API.py
-            if active_id is not None:
-                status = status_data['open']
-                schedule = self.get_nearest_schedule(active_id, sched_init)
-                if schedule is not None:
-                    # Check if the asset already exists in the DataFrame
-                    if active_name in self.Asset_Information['active_name'].values:
-                        # Update existing row
-                        self.Asset_Information.loc[self.Asset_Information['active_name'] == active_name, ['status', 'schedule']] = [status, schedule]
-                    else:
-                        # Add new row
-                        self.Asset_Information.loc[len(self.Asset_Information), ['active_name', 'active_id', 'status', 'schedule', 'candle_status']] = [active_name, active_id, status, schedule, False]
+            active_id = updating_OP_Code.get(active_name)
+            if active_id is None:
+                logging.warning(f"Active name '{active_name}' not found in OP Code mapping.")
+                continue  # Skip this asset
+
+            status = status_data.get('open', None)  # Default to False if key doesn't exist
+            schedule = self._get_nearest_schedule(active_id, sched_init)
+
+            if (status is None) or (schedule is None):
+                logging.warning(f"No schedule found for {active_name} (ID: {active_id}). Skipping asset.")
+                continue  # Skip this asset
+
+            # Update existing asset or add a new one
+            if active_name in self.Asset_Information:
+                self.Asset_Information[active_name]['status'] = status
+                self.Asset_Information[active_name]['schedule'] = schedule
+            else:
+                self.Asset_Information[active_name] = {
+                    'active_name': active_name,
+                    'active_id': active_id,
+                    'status': status,
+                    'schedule': schedule,
+                    'candle_status': False
+                }
+
+        logging.info(f"Updated {len(self.Asset_Information)} assets")
+
+        self._manage_candle_threads()  # Manage candle threads based on asset status and schedule
+
+        self._cleanup_threads()  # Move fully killed threads from sleeping_threads to sleeping_threads
+
         gc.collect()
 
-    def get_nearest_schedule(self, active_id, sched_init):
+    def _get_nearest_schedule(self, active_id, sched_init):
         """Get the nearest schedule timestamp for the given active_id."""
-        try:
-            schedules_list = sched_init[str(active_id)]['schedule']
-            nearest_schedule = min([x for sublist in schedules_list for x in sublist if x >= self.trade_data.get_app_timer()])
-            gc.collect()
-            return nearest_schedule  # Return a single value
-        except Exception as e:
-            logging.error(f"Failed to fetch schedule for active_id {active_id}: {e}")
-            return None
+        schedule = sched_init[str(active_id)]['schedule']
 
-    def manage_candle_threads(self):
+        valid_times = [t for item in schedule if isinstance(item, list) for t in item if t > Money_Heist._instance.get_server_timestamp()]
+
+        return min(valid_times, default=None)  # Use default=None to handle empty lists
+
+    def _process_scheduled_update(self):
+        """Handle timed updates"""
+        logging.info("process_scheduled_update")
+        nearest_schedule = min(info['schedule'] for info in self.Asset_Information.values())  # Calculate nearest_schedule
+        asset_timer_end = self.asset_timer + self.trade_data.get_app_timer()  # Calculate asset_timer + server_timestamp
+        next_update_time = min(nearest_schedule, asset_timer_end)  # Determine the minimum between nearest_schedule and asset_timer_end
+        logging.info(f"Nearest Scheduled is {nearest_schedule} but next sched {next_update_time}.")
+        
+        if self.trade_data.get_app_timer() >= next_update_time:  # Check if server_timestamp is greater than or equal to next_update_time
+            logging.info("Scheduled update time reached. Updating asset information.")
+            self._update_assets()
+        else:
+            # Calculate delay for threading.Timer
+            delay = next_update_time - self.trade_data.get_app_timer()
+            logging.info(f"Scheduling next update in {delay} seconds.")
+            self.killed.wait(delay)
+            self._update_assets()
+
+    def _manage_candle_threads(self):
         """Manage candle threads based on asset status and schedule."""
-        if not self.Asset_Information.empty:
-            
-            for index, row in self.Asset_Information.iterrows():
-                active_name = row['active_name']
-                status = row['status']
-                schedule = row['schedule'] - 60 # sec
-                candle_status = row['candle_status']
+        for active_name, info in self.Asset_Information.items():
+            status = info['status']
+            schedule = info['schedule'] - 60
+            candle_status = info['candle_status']
 
-                if not status and candle_status:
-                    # If status is False and candle_status is True, kill the thread and move it to killing_threads
-                    if active_name in self.candle_threads:
-                        thread = self.candle_threads[active_name]
-                        thread.kill()
-                        self.sleeping_threads.append(thread)  # Move to killing_threads
-                        del self.candle_threads[active_name]
-                    self.Asset_Information.at[index, 'candle_status'] = False
-                    logging.info(f"Candle thread for {active_name} killed and moved to killing threads.")
+            if not status and candle_status:
+                logging.info(f"Stopping candle thread for {active_name} since status is False.")
+                # If status is False and candle_status is True, kill the thread and move it to sleeping_threads
+                if active_name in self.candle_threads:
+                    thread = self.candle_threads[active_name]
+                    thread.kill()
+                    self.sleeping_threads.append(thread)  # Move to sleeping_threads
+                    del self.candle_threads[active_name]
+                self.Asset_Information[active_name]['candle_status'] = False
+                logging.info(f"Candle thread for {active_name} killed and moved to killing threads.")
 
-                elif status and self.trade_data.get_app_timer() < (schedule - 5*60) and not candle_status:
-                    # If status is True, schedule is not reached, and candle_status is False, start a thread
-                    # Check system resources before starting thread
-                    cpu_usage = psutil.cpu_percent(interval=0.1)
+            elif status and self.trade_data.get_app_timer() < (schedule - 60) and not candle_status:
+                # If status is True, schedule is not reached, and candle_status is False, start a thread
+                logging.info(f"Starting candle thread for {active_name} as status is True and timer condition is met.")
+                if self.killed.wait(2):
+                    self.kill()
+                    return
+                
+                count = sum(1 for v in self.Asset_Information.values() if v.get('candle_status') == True)
+                if count <= Maximum_assets:
+                    cpu_usage = psutil.cpu_percent(interval=0.1)  # Check system resources before starting thread
                     memory_usage = psutil.virtual_memory().percent
                     if cpu_usage < 95 and memory_usage < 95:
                         if self.sleeping_threads:
@@ -135,16 +157,18 @@ class Active_Assets(threading.Thread):
                             thread.start()
                         else:
                             # Start a new thread
+                            thread = (active_name, schedule)
                             thread = Candles_Assets(active_name, schedule)
                             thread.start()
                         self.candle_threads[active_name] = thread
-                        self.Asset_Information.at[index, 'candle_status'] = True
-                        logging.info(f"Candle thread for {active_name} started.")
+                        self.Asset_Information[active_name]['candle_status'] = True
+                        logging.info(f"Candle thread for {active_name} ends {schedule}.")
                     else:
                         logging.warning(f"Resources still high - Skipping {active_name} | CPU: {cpu_usage}% | Mem: {memory_usage}%")
 
-    def cleanup_live_threads(self):
+    def _cleanup_threads(self):
         """Optimized thread cleanup with resource monitoring"""
+        logging.info(f"Cleaning up Candle Threads.")
         try:
             # Phase 1: Normal cleanup of dead threads
             cleaned_count = 0
@@ -153,7 +177,7 @@ class Active_Assets(threading.Thread):
                     thread.join()  # Ensure complete cleanup
                     self.sleeping_threads.append(thread)
                     del self.candle_threads[active_name]
-                    self.Asset_Information.loc[self.Asset_Information['active_name'] == active_name, 'candle_status'] = False
+                    self.Asset_Information[active_name]['candle_status'] = False
                     cleaned_count += 1
                     logging.debug(f"Recycled thread: {active_name}")
 
@@ -169,7 +193,7 @@ class Active_Assets(threading.Thread):
                     oldest_thread = next(iter(self.candle_threads.values()))
                     oldest_thread.kill()
                     oldest_thread.join()
-                    self.Asset_Information.loc[self.Asset_Information['active_name'] == oldest_thread.active_name, 'candle_status'] = False
+                    self.Asset_Information[oldest_thread.active_name]['candle_status'] = False
                     self.sleeping_threads.append(oldest_thread)
                     del self.candle_threads[oldest_thread.active_name]
                     logging.warning(f"Stopped oldest thread: {oldest_thread.active_name}")
@@ -179,7 +203,7 @@ class Active_Assets(threading.Thread):
                     new_mem = psutil.virtual_memory().percent
                     if new_cpu >= 95 or new_mem >= 95:
                         logging.warning("Persistent overload - Recursing cleanup")
-                        self.cleanup_live_threads()  # Recursive call
+                        self._cleanup_threads()  # Recursive call
                     else:
                         logging.info(f"Resources normalized - {resource_status}")
             else:
@@ -191,7 +215,7 @@ class Active_Assets(threading.Thread):
     
     def kill(self):
         """Kill the thread gracefully."""
-        self.killed.is_set()
+        self.killed.set()
         # Kill all active candle threads
         if self.candle_threads:
             for actives, thread in self.candle_threads.items():
@@ -206,5 +230,6 @@ class Active_Assets(threading.Thread):
             logging.info("All sleeping_threads cleaned up.")
         self.candle_threads.clear()
         self.sleeping_threads.clear()
+        self.Asset_Information.clear()
         gc.collect()  # Clean up resources
         logging.info("Active assets thread and all candle threads stopped gracefully.")

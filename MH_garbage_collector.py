@@ -5,9 +5,8 @@ class GCManager(threading.Thread):
     """A background thread that performs garbage collection every 60 seconds."""
     
     def __init__(self, interval=60):
-        super().__init__()
+        super().__init__(daemon=True)  # Daemon mode so it exits when the main app stops
         self.interval = interval  # Run GC every `interval` seconds
-        self.setDaemon(True)  # Daemon mode so it exits when the main app stops
         self.killed = threading.Event()
         gc.enable()
     
@@ -20,5 +19,7 @@ class GCManager(threading.Thread):
 
     def kill(self):
         """Stops the garbage collection thread."""
+        gc.collect()  # Trigger garbage collection
+        logging.info("Garbage collection completed.")
         self.killed.set()
         gc.collect()

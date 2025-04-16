@@ -82,14 +82,14 @@ def main():
 
         threads.clear()
 
-        check_email.kill()
-        check_email.join()
-
         timer_synching.kill()
         timer_synching.join()
 
+        check_email.kill()
+        check_email.join()
+
         # Close API connection
-        money_heist_api.close_connection()
+        Money_Heist._instance.close_connection()
 
         # Explicit garbage collection
         gc_manager.kill()
@@ -97,7 +97,6 @@ def main():
 
         logging.info("Application shut down successfully.")
         raise SystemExit("Your account has been stopped.")
-
 
 if __name__ == "__main__":
     main()

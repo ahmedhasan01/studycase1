@@ -5,18 +5,18 @@ from MH_savings import TradeData
 
 class CheckWin(threading.Thread):
     def __init__(self):
-        threading.Thread.__init__(self)
+        super().__init__(daemon=True)  # Proper initialization
         self.killed = threading.Event()
         self.interval = 5 * 60  # 5 minutes in seconds
         self.api = Money_Heist._instance  # Access the already initialized instance
-        self.trade_data = TradeData()
+        self.trade_data = TradeData._instance or TradeData()  # Access the already initialized instance
 
     def run(self):
         """Main execution loop with 5-minute intervals"""
         while not self.killed.is_set():
             
         # Wait until the API connection is established or the killed flag is set
-            while not self.trade_data.get_API_connected().is_set():
+            while not self.trade_data.get_API_connected().is_set() or self.trade_data.get_app_timer() == 0:
                 if self.killed.wait(1):
                     self.kill()
                     return  # Exit immediately
@@ -42,8 +42,11 @@ class CheckWin(threading.Thread):
         logging.info("Starting checking win processing.")
         # Step 3: Copy and clear trade_ids
         copied_trades = self.trade_data.get_trade_ids()
-        for id in copied_trades:
-            self.trade_data.delete_trade_ids(id)
+        to_delete = []
+        for id in list(copied_trades):
+            to_delete.append(id)
+
+        self.trade_data.delete_trade_ids(to_delete)
         
         if not copied_trades:
             logging.info("No check win to process. Exiting function.")
@@ -81,13 +84,14 @@ class CheckWin(threading.Thread):
                 if opt_id in copied_trades:
                     if option['win'] == 'win':
                         self.trade_data.update_trade_status(option['win'])
-                        del copied_trades[opt_id]
                         logging.info(f"Trade {opt_id} won and removed.")
                     else:
                         logging.info(f"Trade {opt_id} lost. Logging details.")
                         self.trade_data.update_trade_status(option['win'])
                         self.trade_data.update_loss_records(copied_trades[opt_id])
         
+        self.trade_data.save_loss_records()
+        del copied_trades, check_win, open_options, closed_options
         gc.collect()
 
     def kill(self):

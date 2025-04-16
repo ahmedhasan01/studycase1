@@ -1,15 +1,16 @@
 from MH_libraries import threading, logging, os, gc
 from MH_API import Money_Heist
 from MH_savings import TradeData
+import iqoptionapi
 
 
 class OPCodeUpdater(threading.Thread):
     """Separate thread to update OP_code every 6 hours."""
     def __init__(self, update_interval = 6 * 3600):  # 6 hours in seconds
-        threading.Thread.__init__(self)
+        super().__init__(daemon=True)  # Proper initialization
         self.killed = threading.Event()  # Used for thread termination
         self.api = Money_Heist._instance  # Access the already initialized instance
-        self.trade_data = TradeData()
+        self.trade_data = TradeData._instance or TradeData()  # Access the already initialized instance
         self.update_interval = update_interval
 
     def fetch_op_code(self):
@@ -28,22 +29,10 @@ class OPCodeUpdater(threading.Thread):
         """Update the constants.py file in the iqoptionapi directory."""
         try:
             # Search for the constants.py file in the iqoptionapi folder (nested or not)
-            constants_path = None
-            for root, dirs, files in os.walk("."):  # Start searching from the current directory
-                if "iqoptionapi" in dirs:
-                    iqoptionapi_path = os.path.join(root, "iqoptionapi")
-                    if "constants.py" in os.listdir(iqoptionapi_path):
-                        constants_path = os.path.join(iqoptionapi_path, "constants.py")
-                        break
-                # Check if iqoptionapi is nested in subdirectories
-                for dir_name in dirs:
-                    if dir_name == "iqoptionapi":
-                        iqoptionapi_path = os.path.join(root, dir_name)
-                        if "constants.py" in os.listdir(iqoptionapi_path):
-                            constants_path = os.path.join(iqoptionapi_path, "constants.py")
-                            break
+            lib_path = os.path.dirname(iqoptionapi.__file__)
+            constants_path = os.path.join(lib_path, "constants.py")
 
-            if constants_path:
+            if os.path.exists(constants_path):
                 # Open the constants.py file in write mode
                 with open(constants_path, "w") as file:
                     # Write the updated ACTIVES dictionary to the file
@@ -56,11 +45,11 @@ class OPCodeUpdater(threading.Thread):
     
     def run(self):
         """Main loop to update OP_code periodically."""
-        logging.info("OPCodeUpdater started. Waiting for API connection...")
         while not self.killed.is_set():
 
             # Wait until the API connection is established or the killed flag is set
-            while not self.trade_data.get_API_connected().is_set():
+            while not self.trade_data.get_API_connected().is_set() or self.trade_data.get_app_timer() == 0:
+                logging.info("OPCodeUpdater started. Waiting for API connection...")
                 if self.killed.wait(1):
                     self.kill()
                     return  # Exit immediately

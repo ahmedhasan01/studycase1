@@ -7,9 +7,8 @@ class Profile(threading.Thread):
     """Thread to fetch and update profile information daily."""
 
     def __init__(self):
-        threading.Thread.__init__(self)
+        super().__init__(daemon=True)  # Proper initialization
         self.killed = threading.Event()
-        self.profile_timer = None  # Timer for daily profile updates
         self.Profile_Information = pandas.DataFrame(columns=["my_info"])
         self.profile_list = [
             'confirmation_required',
@@ -28,13 +27,13 @@ class Profile(threading.Thread):
             'deposit_count'
         ]
         self.api = Money_Heist._instance  # Access the already initialized instance
-        self.trade_data = TradeData()
+        self.trade_data = TradeData._instance or TradeData()  # Access the already initialized instance
 
     def run(self):
         """Main loop to fetch and update profile information."""
         logging.info("Profile Factory started. Waiting for API connection...")
-        while not self.killed.is_set():  # Check for thread termination
 
+        while not self.killed.is_set():  # Check for thread termination
             # Wait until the API connection is established or the killed flag is set
             while not self.trade_data.get_API_connected().is_set():
                 if self.killed.wait(1):
@@ -50,14 +49,15 @@ class Profile(threading.Thread):
                 self.fetch_profile_information()
             except Exception as e:
                 logging.error(f"Failed to fetch profile: {e}. Retrying in 10 seconds...")
-                self.killed.wait(10)
-            finally:
-                if self.killed.is_set():
+                if self.killed.wait(10):
                     self.kill()
                     return
 
-            # Schedule the next profile update for the next day
-            self.schedule_daily_update()
+            # Wait for 6 hours before the next update
+            logging.info("Waiting for 6 hours before the next profile update...")
+            if self.killed.wait(21600):  # 6 hours in seconds
+                self.kill()
+                return
 
     def fetch_profile_information(self):
         """Fetch and update profile information."""
@@ -81,28 +81,9 @@ class Profile(threading.Thread):
         logging.info(f"Profile information saved to {filename}")
         gc.collect()  # Manually trigger garbage collection
 
-    def schedule_daily_update(self):
-        """Schedule the next profile update for the next day."""
-        now = datetime.datetime.now()
-        next_day = now + datetime.timedelta(days=1)
-        next_day_midnight = datetime.datetime.combine(next_day, datetime.time.min)  # Next day at midnight
-        delay = (next_day_midnight - now).total_seconds()  # Delay in seconds
-
-        # Cancel the existing timer (if any)
-        if self.profile_timer:
-            self.profile_timer.cancel()
-
-        # Schedule the next update
-        self.profile_timer = threading.Timer(delay, self.run)
-        self.profile_timer.start()
-        logging.info(f"Next profile update scheduled for {next_day_midnight}")
-        gc.collect()  # Manually trigger garbage collection
-
     def kill(self):
         """Kill the thread gracefully."""
         self.killed.set()
-        if self.profile_timer:
-            self.profile_timer.cancel()
         self.fetch_profile_information()
         gc.collect()
         logging.info("Profile thread stopped gracefully.")

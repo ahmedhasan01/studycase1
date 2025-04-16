@@ -22,3 +22,4 @@ INSTRUMENTS = 'turbo'  # Options: 'turbo' or 'binary'
 CASH_TO_TRADE = 50  # Default amount to trade
 CANDLES_COUNT = 111  # Number of candles to retrieve
 DURATIONS = 1 if INSTRUMENTS == 'turbo' else 5  # Duration of trades (in minutes)
+Maximum_assets = max(1, (3 - 1))

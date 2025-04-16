@@ -12,9 +12,9 @@ class ServerTimeSynchronizer(threading.Thread):
             api: An instance of the IQOption API to fetch the server timestamp.
             sync_interval: The interval (in seconds) between server timestamp synchronization requests.
         """
-        threading.Thread.__init__(self)
+        super().__init__(daemon=True)  # Proper initialization
         self.api = Money_Heist._instance  # Access the already initialized instance
-        self.trade_data = TradeData()
+        self.trade_data = TradeData._instance or TradeData()  # Access the already initialized instance
         self.sync_interval = sync_interval  # Time between API requests (in seconds)
         self.offset = 0  # Difference between server timestamp and local time
         self.last_sync_time = 0  # Timestamp of the last synchronization
@@ -22,11 +22,11 @@ class ServerTimeSynchronizer(threading.Thread):
 
     def run(self):
         """Main loop to update and synchronize the app_timer."""
-        logging.info("ServerTimeSynchronizer started. Waiting for API connection...")
         while not self.killed.is_set():
 
             # Wait until the API connection is established or the killed flag is set
             while not self.trade_data.get_API_connected().is_set():
+                logging.info("ServerTimeSynchronizer started. Waiting for API connection...")
                 if self.killed.wait(1):
                     self.kill()
                     return  # Exit immediately
@@ -41,14 +41,13 @@ class ServerTimeSynchronizer(threading.Thread):
                 elapsed_time = current_time - self.last_sync_time  # Time elapsed since last update
                 if elapsed_time >= self.sync_interval:
                     server_timestamp = self.api.get_server_timestamp() * 1000  # Convert to milliseconds
-                    self.trade_data.set_app_timer(server_timestamp)
+                    self.trade_data.set_app_timer(server_timestamp / 1000)  # Convert elapsed_time from milliseconds
                     self.offset = server_timestamp - (time.perf_counter() * 1000)  # Calculate the offset
                     self.last_sync_time = current_time
                     logging.info(f"Synchronized app_timer with server timestamp: {server_timestamp}")
 
-                self.trade_data.set_app_timer((time.perf_counter() * 1000) + self.offset)  # Convert elapsed_time to milliseconds
+                self.trade_data.set_app_timer(((time.perf_counter() * 1000) + self.offset) / 1000)  # Convert elapsed_time from milliseconds
 
-                # Sleep for a short interval to avoid busy-waiting
                 self.killed.wait(0.01)  # Sleep for 10ms (adjust as needed)
 
             except Exception as e:

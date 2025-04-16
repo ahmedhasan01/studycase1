@@ -28,7 +28,7 @@ class Money_Heist:
         
         logging.info("Initializing IQ Option API connection.")
         self.money_heist = IQ_Option(Email, Password)
-        self.trade_data = TradeData()
+        self.trade_data = TradeData._instance or TradeData()  # Access the already initialized instance
         self.last_connection_time = None
         self._initialized = True
         
@@ -38,9 +38,10 @@ class Money_Heist:
         """Connect to the IQ Option API with session refresh."""
         if self.last_connection_time is None or time.time() - self.last_connection_time > 1800:
             logging.info("Session expired. Reconnecting...")
-            self._attempt_connection()
+            logging.info(f"API_connected {self.trade_data.get_API_connected().is_set()}.")
+            return self._attempt_connection()
         elif not self.trade_data.get_API_connected().is_set():
-            self._attempt_connection()
+            return self._attempt_connection()
 
     def _attempt_connection(self) -> bool:
         """
@@ -255,7 +256,7 @@ class Money_Heist:
             logging.error(f"Failed to fetch actives names: {e}")
             return {}  # Return an empty dictionary on failure
 
-    def get_candles(self, asset, interval, count):
+    def get_candles(self, asset, interval, count, timestamp):
         """
         Retrieve candlestick data for a specific asset.
         
@@ -268,8 +269,7 @@ class Money_Heist:
             dict: A dictionary containing the Candles.
         """
         try:
-            logging.info(f"Retrieving {count} candles for {asset} with interval {interval} seconds.")
-            candles = self.money_heist.get_candles(asset, interval, count)
+            candles = self.money_heist.get_candles(asset, interval, count, timestamp)
             gc.collect()  # Force garbage collection
             return candles
         except ConnectionError as e:
