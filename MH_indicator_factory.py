@@ -18,7 +18,7 @@
 #     'rb', 'rb_slope', 'rbo', 'wick_low', 'wick_up'
 # ]
 
-from MH_libraries import numpy, pandas, talib, threading, gc
+import numpy, pandas, talib, gc
 from MH_strategy_factory import Indicator_Signals
 from collections import defaultdict
 import inspect
@@ -31,13 +31,14 @@ class Indicators:
         self._parse_candles()
         self._init_params()
         self.talib_indicators = self._get_talib_indicators()
-        # self.main_cols = ['id', 'from', 'to', 'open', 'close', 'min', 'max', 'volume']
+        
 
     def run(self):
         
         self.compute_indicators()
         signals = Indicator_Signals(self.candles).run()
         signals['from'] = self.candles['from']
+        signals = (signals['final_dir'].iloc[-1], signals['Trade_time'].iloc[-1])
 
         # Get all attributes set in __init__
         init_attrs = list(self.__dict__.keys())
@@ -101,15 +102,9 @@ class Indicators:
 
     def wicks_indic(self):  # Wicks - Upper Wicks
         
-        bop = talib.BOP(self.Open, self.High, self.Low, self.Close)
-        
         return {
-            'wick_up': numpy.where((bop * 100) < 0,
-                                   talib.BOP(self.Open, self.High, self.Low, self.High) * 100,
-                                   talib.BOP(self.Close, self.High, self.Low, self.High) * 100),
-            'wick_low': numpy.where((bop * 100) < 0,
-                                    talib.BOP(self.Low, self.High, self.Low, self.Close) * 100,
-                                    talib.BOP(self.Low, self.High, self.Low, self.Open) * 100)
+            'wick_up': (self.High - self.candles[['open', 'close']].max(axis=1)) * 100,
+            'wick_low': (self.candles[['open', 'close']].min(axis=1) - self.Low) * 100
         }
 
     def donchian_indic(self, timeperiod = 11):  # DONCHAN - Donchian Channels

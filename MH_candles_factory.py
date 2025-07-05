@@ -24,17 +24,15 @@ class Candles_Assets(threading.Thread):
 
     def start_trading_thread(self, latest_row, Indication):
         """Start or reuse a trading thread for the specified asset."""
-        merge = self.merge_rows(Indication)
+        # merge = self.merge_rows(Indication)
         if self.sleeping_threads:
             # Reuse a sleeping thread
             thread = self.sleeping_threads.pop()
             thread.trade_signal = latest_row['final_dir']  # Latest trade signal
             thread.trade_time = latest_row['Trade_time']  # Latest trade time
-            thread.stock_data = merge  # Pass part of the DataFrame
+            # thread.stock_data = merge  # Pass part of the DataFrame
             thread.start()
-            logging.info(f"Reusing a sleeping trading thread for {self.active_name} in {latest_row['final_dir'] }.")
         else:
-            
             # Start a new thread
             thread = self.active_name
             thread = Trading_Assets(
@@ -42,7 +40,7 @@ class Candles_Assets(threading.Thread):
                 schedule=self.schedule,
                 trade_signal=latest_row['final_dir'],  # Latest trade signal
                 trade_time=latest_row['Trade_time'],  # Latest trade time
-                stock_data=merge  # Pass part of the DataFrame
+                # stock_data=merge  # Pass part of the DataFrame
             )
             thread.start()
             logging.info(f"Starting a new trading thread for {self.active_name} in {latest_row['final_dir']}.")
@@ -62,7 +60,6 @@ class Candles_Assets(threading.Thread):
     def fetch_candles(self, count):
         """Fetch candlestick data for the specified asset."""
         try:
-            logging.info(f"Fetching {count} candles for {self.active_name}.")
             candles = self.api.get_candles(self.active_name, self.interval, count + 2, TradeData().get_app_timer())
             return candles
         except Exception as e:
@@ -71,9 +68,7 @@ class Candles_Assets(threading.Thread):
 
     def update_stock(self, candles):
         """Update the stock list with new candles."""
-        if candles:
-            logging.info(f"Updating stock for {self.active_name} with {len(candles)} new candles.")
-            
+        if candles:            
             # Filter candles based on 'to' timestamp
             filtered_new_data = [candle for candle in candles if candle['to'] < self.trade_data.get_app_timer()]
             
@@ -105,7 +100,6 @@ class Candles_Assets(threading.Thread):
                 if i > 0:
                     time_diff = self.stock[i]['from'] - self.stock[i - 1]['from']
                     if time_diff > 60:
-                        logging.warning(f"Detected gaps in the stock data for {self.active_name}. Keeping only the first group.")
                         break
                 cleaned_stock.append(self.stock[i])
 
@@ -126,7 +120,6 @@ class Candles_Assets(threading.Thread):
 
             self.recursion = 0
 
-            logging.info(f"Stock updated. New stock size: {len(self.stock)} candles after removing duplicates and sorting and rolling window.")
             # Apply indicators to the stock data
             Indication = Indicators(self.stock).run()
 
@@ -158,7 +151,7 @@ class Candles_Assets(threading.Thread):
     def merge_rows(self, df: pandas.DataFrame) -> pandas.DataFrame:
         idx = df['from'].idxmax()
         KEEP_SUFFIXES = ('_color', '_dir', 'pattern', 'MTD', 'GTD', 'RTD', 'Timing')
-        MERGE_SIZES = (2, 3, 5, 10, 15, 25)
+        MERGE_SIZES = (1, 2, 3)
         DROP_COLS = {'id', 'from', 'to', 'at', 'open', 'close', 'min', 'max', 'volume', 'Trade_time'}
 
         keep_cols = [col for col in df.columns if col.endswith(KEEP_SUFFIXES)]
@@ -178,7 +171,7 @@ class Candles_Assets(threading.Thread):
             merged_row.update(subset_clean[keep_cols].iloc[-1].to_dict())
 
             for col in merge_cols:
-                merged_row[col] = ', '.join(map(str, subset_clean[col].dropna().tolist()))
+                merged_row[col] = ', '.join(map(str, subset_clean[col].dropna().to_list()))
 
             merged_rows.append(merged_row)
 
@@ -186,9 +179,7 @@ class Candles_Assets(threading.Thread):
         return merged_rows
             
     def run(self):
-        """Main loop to update candlestick data."""
-        logging.info(f"Starting Candles_Assets thread for {self.active_name}.")
-        
+        """Main loop to update candlestick data."""        
         while not self.killed.is_set():
             # Wait until the API connection is established or the killed flag is set
             while not (self.trade_data.get_API_connected().is_set() and self.trade_data.get_OP_Code_event().is_set() and self.trade_data.get_app_timer() > 0):

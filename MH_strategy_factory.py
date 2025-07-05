@@ -1,9 +1,9 @@
-from MH_libraries import talib, numpy, pandas, threading, gc
-import logging
+import logging, talib, numpy, pandas, time, gc
 
 class Indicator_Signals():
     
     def __init__(self, df):
+        self.duration = 1 * 60
         self.df = df
         self.Open = self.df['open'].astype(float)
         self.High = self.df['max'].astype(float)
@@ -11,37 +11,45 @@ class Indicator_Signals():
         self.Close = self.df['close'].astype(float)
         self.Volume = self.df['volume'].astype(float)
         self.To = self.df['to'].astype(float)
-        self.AVGPRICE = talib.AVGPRICE(self.Open, self.High, self.Low, self.Close)
         self.strategies_list = {}
-        self._strategy_lock = threading.Lock()
         self.final_list = []
-        self._final_lock = threading.Lock()
         self._strategy_methods = self._get_strategy_methods()
-        self._threads = []  # Stores active threads
+        self._Parse_logic()
+        self.max_indicator = 1
+        logging.info('computing Strategies inside Indicator_Signals class.')
 
     def run(self) -> None:
-        # Clear previous threads if any
-        self._threads.clear()
 
-        # Start a thread for each strategy
-        for method_name in self._strategy_methods:
-            thread = threading.Thread(target=getattr(self, method_name))
-            thread.start()
-            self._threads.append(thread)
+        start = time.time()
+        results = {}
 
-        # Wait for all threads to complete
-        while self._threads:
-            thread = self._threads.pop()  # Remove thread from list
-            if thread.is_alive():  # Only join if still running
-                thread.join()  # Wait for completion
-            del thread
+        for strategy in self._strategy_methods:
+            try:
+                # Call methods with required arguments (self.df for example)
+                if 'df' in getattr(self, strategy).__code__.co_varnames:
+                    result = getattr(self, strategy)(self.df)  # Pass self.df if needed
+                else:
+                    result = getattr(self, strategy)()  # Call without arguments
+                if isinstance(result, dict):
+                    results.update(result)
+            except Exception as exc:
+                logging.error(f"computing Strategies in Indicator_Signals class {strategy}: {exc}")
 
-        strategy = pandas.DataFrame(self.strategies_list)
-        strategy.dropna(axis=1, inplace=True)
-        strategy['final_dir'] = strategy.mode(axis=1)[0]
-        strategy.loc[(strategy['final_dir'] == 'nan'), 'final_dir'] = strategy['RTD_dir']
-        final_list = pandas.concat(self.final_list, axis=1)
-        final_list = pandas.concat([final_list, strategy], axis=1)
+        self.strategies_list = pandas.DataFrame.from_dict(results)
+        call_count_series = (self.strategies_list == 1).sum(axis=1)
+        put_count_series = (self.strategies_list == -1).sum(axis=1)
+        self.strategies_list['final_dir'] = numpy.select(
+            [
+                (call_count_series > put_count_series) & (call_count_series >= self.max_indicator),
+                (put_count_series > call_count_series) & (put_count_series >= self.max_indicator)
+            ],
+            ['call', 'put'],
+            'none'
+        )
+        self.final_list = pandas.concat(self.final_list, axis=1)
+        final_list = pandas.concat([self.final_list, self.strategies_list], axis=1)
+        logging.info(f" FINAL_DIR: {self.strategies_list['final_dir'].iloc[-1]} after {final_list['Timing'].iloc[-1]}, call_count_series: {call_count_series.iloc[-1]}, put_count_series: {put_count_series.iloc[-1]}")
+        final_list['Trade_time'] = numpy.where(final_list['Timing'] != 0, (self.To + final_list['Timing']), 0)
 
         # Get all attributes set in __init__
         init_attrs = list(self.__dict__.keys())
@@ -50,7 +58,27 @@ class Indicator_Signals():
             delattr(self, attr)
         gc.collect()
 
+        ends = time.time()
+        logging.warning(f"computing Strategies in Indicator_Signals class 2. {ends - start}")
         return final_list
+
+    def _Parse_logic(self):
+        
+        self.BOP_c = talib.BOP(self.Open, self.High, self.Low, self.Close)
+        self.bullish_candle = self.Close > self.Open
+        self.bearish_candle = self.Close < self.Open
+        self.AVGPRICE = talib.AVGPRICE(self.Open, self.High, self.Low, self.Close)
+        if self.Volume is not None and isinstance(self.Volume, pandas.Series):
+            zero_vol = (self.Volume == 0).all()
+            self.VOL_MA = talib.EMA(self.Volume.fillna(0), timeperiod=11)
+            self.volume_spike = pandas.Series(True, index=self.Volume.index) if zero_vol else self.Volume > (1.8 * self.VOL_MA)
+        self.EMA_c = talib.EMA(self.AVGPRICE, timeperiod=11)
+        self.RSI_c = talib.RSI(self.AVGPRICE, timeperiod=11)
+        self.mid_channel = self._mid_channel()
+        self.support = self._support() | (self.RSI_c < 30)
+        self.resistance = self._resistance() | (self.RSI_c > 70)
+        self.price_above_ema = self.AVGPRICE > self.EMA_c
+        self.price_below_ema = self.AVGPRICE < self.EMA_c
 
     def _get_strategy_methods(self):
         """Identify strategy methods at init (cached for speed)."""
@@ -62,9 +90,7 @@ class Indicator_Signals():
         ]
 
     def _add_strategy(self, indicator_name, signal_series):
-        
-        with self._strategy_lock:  # Thread-safe update
-            self.strategies_list[f'{indicator_name}_dir'] = signal_series
+        self.strategies_list[f'{indicator_name}_dir'] = signal_series
 
     def _assign_color_labels(self, df: pandas.DataFrame, columns:list, suffix='_color', default='n'):
         shifted = df[columns].shift(1)
@@ -87,8 +113,7 @@ class Indicator_Signals():
         label_df = label_df.loc[:, ~(label_df == 'n').all()]
 
         # Add the label DataFrame to the results
-        with self._final_lock:  # Thread-safe update
-            self.final_list.append(label_df)
+        self.final_list.append(label_df)
 
     def _adjust_decimal_precision(self, df: pandas.DataFrame, columns: list) -> pandas.DataFrame:
         # List to store adjusted columns
@@ -125,169 +150,104 @@ class Indicator_Signals():
         
         return adjusted_columns
 
-    def Strategy(self):
+    def _support(self, threshold_pct=0.01, lookback=11):
+        """
+        Combine swing lows, Fibonacci levels, and pivot points for support detection
+        Returns: Boolean Series where True indicates price is near support
+        """
+        # Swing Low Support
+        swing_lows = (self.Low < self.Low.shift(1)) & (self.Low < self.Low.shift(-1))
+        swing_vals = self.Low.where(swing_lows)
+        swing_support = swing_vals.rolling(lookback, min_periods=1).min().ffill()
         
-        if 'BOP' in self.df.columns:
-            BOP = self.df['BOP'] * 100
-        else:
-            BOP = talib.BOP(self.Open, self.High, self.Low, self.Close) * 100
-        if all(col in self.df.columns for col in ['wick_up', 'wick_low']):
-            wick_up = self.df['wick_up']
-            wick_low = self.df['wick_low']
-        else:
-            wick_up = numpy.where(BOP < 0, (talib.BOP(self.Open, self.High, self.Low, self.High) * 100), (talib.BOP(self.Close, self.High, self.Low, self.High) * 100))
-            wick_low = numpy.where(BOP < 0, (talib.BOP(self.Low, self.High, self.Low, self.Close) * 100), (talib.BOP(self.Low, self.High, self.Low, self.Open) * 100))
-        if 'MAD' in self.df.columns:
-            MAD = self.df['MAD']
-        else:
-            if 'EMA' in self.df.columns:
-                EMA = self.df['EMA']
-                MAD = self.AVGPRICE - EMA
-            else:
-                EMA = talib.EMA(self.AVGPRICE, timeperiod=11)
-                MAD = self.AVGPRICE - EMA
-        if all(col in self.df.columns for col in ['Gator_UPPER', 'Gator_LOWER']):
-            Gator_UPPER = self.df['Gator_UPPER']
-            Gator_LOWER = self.df['Gator_LOWER']
-        else:
-            Gator_JAW = talib.WMA(self.AVGPRICE, timeperiod=11).shift(6)
-            Gator_TEETH = talib.WMA(self.AVGPRICE, timeperiod=6).shift(3) 
-            Gator_LIPS = talib.WMA(self.AVGPRICE, timeperiod=3).shift(1)
-            Gator_UPPER = abs(Gator_JAW - Gator_TEETH )
-            Gator_LOWER = abs(Gator_TEETH - Gator_LIPS )
-        if all(col in self.df.columns for col in ['rb', 'rbo']):
-            rb = self.df['rb']
-            rbo = self.df['rbo']
-        else:
-            ma_list = [EMA]
-            for i in range(0, 10):  # 10 EMAs in total
-                ma_list.append(talib.EMA(ma_list[i - 1], timeperiod=11))
-            ma_stack_df = pandas.concat(ma_list, axis=1)  # Stack the EMAs into a DataFrame
-            hh, ll = talib.MAX(self.AVGPRICE, 11), talib.MIN(self.AVGPRICE, 11)
-            rb = 100 * (ma_stack_df.max(axis=1) - ma_stack_df.min(axis=1)) / (hh - ll)
-            rbo = 100 * (self.AVGPRICE - ma_stack_df.mean(axis=1)) / (hh - ll)
-
-        MAD_shift = MAD.shift(1)
-        MAD_color = numpy.select([MAD > MAD_shift, MAD < MAD_shift, MAD == MAD_shift], ['g', 'r', 'n'], default='n')
-        Gator_UPPER_color = numpy.select([Gator_UPPER > Gator_UPPER.shift(1), Gator_UPPER < Gator_UPPER.shift(1), Gator_UPPER == Gator_UPPER.shift(1)], ['g', 'r', 'n'], default='n')
-        Gator_LOWER_color = numpy.select([Gator_LOWER > Gator_LOWER.shift(1), Gator_LOWER < Gator_LOWER.shift(1), Gator_LOWER == Gator_LOWER.shift(1)], ['g', 'r', 'n'], default='n')
-        RBO_color = numpy.select([rbo > rbo.shift(1), rbo < rbo.shift(1), rbo == rbo.shift(1)], ['g', 'r', 'n'], default='n')
-
-        # Define conditions
-        G_Candl = (BOP > 100) & (abs(BOP) > 7)
-        R_Candl = (BOP < 100) & (abs(BOP) > 7)
-        U_Wick = wick_up >= (wick_low * 1.1)
-        L_Wick = wick_low >= (wick_up * 1.1)
-        P_G_MAD = ((MAD_color == 'g') & (MAD > 0))
-        N_G_MAD = ((MAD_color == 'g') & (MAD < 0))
-        P_R_MAD = ((MAD_color == 'r') & (MAD > 0))
-        N_R_MAD = ((MAD_color == 'r') & (MAD < 0))
+        # Fibonacci Support Levels
+        recent_high = self.High.rolling(lookback).max()
+        recent_low = self.Low.rolling(lookback).min()
+        swing_range = recent_high - recent_low
+        fib_382 = recent_high - swing_range * 0.382
+        fib_500 = recent_high - swing_range * 0.5
+        fib_618 = recent_high - swing_range * 0.618
         
-        put_condition = ((G_Candl | R_Candl) & (U_Wick & P_G_MAD)) | \
-                        ((G_Candl | R_Candl) & (L_Wick & N_G_MAD)) | \
-                        ((G_Candl | R_Candl) & (U_Wick & N_R_MAD)) | \
-                        ((G_Candl | R_Candl) & (L_Wick & P_R_MAD))
-
-        call_condition = ((G_Candl | R_Candl) & (U_Wick & N_G_MAD)) | \
-                        ((G_Candl | R_Candl) & (L_Wick & P_G_MAD)) | \
-                        ((G_Candl | R_Candl) & (U_Wick & P_R_MAD)) | \
-                        ((G_Candl | R_Candl) & (L_Wick & N_R_MAD))
-        MTD = numpy.select([put_condition, call_condition], ['put', 'call'], default=numpy.nan)
-        MTD_Reversal = numpy.select([(MTD == 'call'), (MTD == 'put')], ['put', 'call'], default=numpy.nan)
-
-        G_G_Gator = ((Gator_UPPER_color == 'g') & (Gator_LOWER_color == 'g'))
-        R_R_Gator = ((Gator_UPPER_color == 'r') & (Gator_LOWER_color == 'r'))
-        G_R_Gator = ((Gator_UPPER_color == 'g') & (Gator_LOWER_color == 'r'))
-        R_G_Gator = ((Gator_UPPER_color == 'r') & (Gator_LOWER_color == 'g'))
-        G_G_UPP_Gator = (G_G_Gator & (Gator_UPPER >= (Gator_LOWER * 1.9)))
-        G_G_LOW_Gator = (G_G_Gator & (Gator_LOWER >= (Gator_UPPER * 1.8)))
-        R_R_UPP_Gator = (R_R_Gator & (Gator_UPPER >= (Gator_LOWER * 1.9)))
-        R_R_LOW_Gator = (R_R_Gator & (Gator_LOWER >= (Gator_UPPER * 1.8)))
-        G_R_UPP_Gator = (G_R_Gator & (Gator_UPPER >= (Gator_LOWER * 1.8)))
-        G_R_LOW_Gator = (G_R_Gator & (Gator_LOWER >= (Gator_UPPER * 1.7)))
-        R_G_UPP_Gator = (R_G_Gator & (Gator_UPPER >= (Gator_LOWER * 1.8)))
-        R_G_LOW_Gator = (R_G_Gator & (Gator_LOWER >= (Gator_UPPER * 1.7)))
+        # Pivot Point Support Levels
+        prev_high = self.High.shift(1)
+        prev_low = self.Low.shift(1)
+        prev_close = self.AVGPRICE.shift(1)
+        PP = (prev_high + prev_low + prev_close) / 3
+        S1 = 2 * PP - prev_high
+        S2 = PP - (prev_high - prev_low)
         
-        conditions = [
-            ((rbo > 0) & G_G_Gator),  # First condition
-            ((rbo > 0) & R_R_Gator),  # Second condition
-            ((rbo > 0) & G_R_Gator),  # Third condition
-            ((rbo > 0) & R_G_Gator),  # Fourth condition
-            ((rbo < 0) & G_G_Gator),
-            ((rbo < 0) & R_R_Gator),
-            ((rbo < 0) & G_R_Gator),
-            ((rbo < 0) & R_G_Gator)
-        ]
-        # Corresponding results for each condition
-        choices = [
-            numpy.where(G_G_UPP_Gator & G_G_LOW_Gator, MTD_Reversal, MTD),
-            numpy.where(R_R_UPP_Gator & R_R_LOW_Gator, MTD, MTD_Reversal),
-            numpy.where(G_R_UPP_Gator & G_R_LOW_Gator, MTD, MTD_Reversal),
-            numpy.where(R_G_UPP_Gator & R_G_LOW_Gator, MTD_Reversal, MTD),
-            numpy.where(G_G_UPP_Gator & G_G_LOW_Gator, MTD, MTD_Reversal),
-            numpy.where(R_R_UPP_Gator & R_R_LOW_Gator, MTD_Reversal, MTD),
-            numpy.where(G_R_UPP_Gator & G_R_LOW_Gator, MTD_Reversal, MTD),
-            numpy.where(R_G_UPP_Gator & R_G_LOW_Gator, MTD, MTD_Reversal)
-        ]
-        GTD = numpy.select(conditions, choices, default=numpy.nan)
-        GTD_Reversal = numpy.select([(GTD == 'call'), (GTD == 'put')], ['put', 'call'], default=numpy.nan)
-
-        rain = ((abs(rbo) - abs(rb)) / (abs(rbo) + abs(rb))) * 100
-        RTD = numpy.where((((rain >= 20) & (rain <= 80)) | ((rain >= 120) & (rain <= 180))),
-                numpy.where((rb > 0), GTD, GTD_Reversal),
-                numpy.where((rb > 0), GTD_Reversal, GTD)
-        )
-
-        GR_UPP_Gator = (Gator_UPPER > Gator_LOWER)
-        GR_LOW_Gator = (Gator_UPPER < Gator_LOWER)
-        P_G_RAIN = (rbo > 0) & (RBO_color == 'g')
-        P_R_RAIN = (rbo > 0) & (RBO_color == 'r')
-        N_G_RAIN = (rbo < 0) & (RBO_color == 'g')
-        N_R_RAIN = (rbo < 0) & (RBO_color == 'r')
-
-        Time = (3 * (abs((abs(Gator_UPPER) - abs(Gator_LOWER)) / (abs(Gator_UPPER) + abs(Gator_LOWER)).mean()) % 1)).round(2)
-        time_ab = (15 + 9 + Time)
-        time_lo = (15 + 5 - Time)
-
-        Timing = numpy.select(
-            [
-                (GR_LOW_Gator | GR_UPP_Gator) & (P_G_RAIN & (Gator_UPPER_color == 'g')),
-                (GR_LOW_Gator | GR_UPP_Gator) & (P_G_RAIN & (Gator_UPPER_color == 'r')),
-                (GR_LOW_Gator | GR_UPP_Gator) & (P_R_RAIN & (Gator_UPPER_color == 'g')),
-                (GR_LOW_Gator | GR_UPP_Gator) & (P_R_RAIN & (Gator_UPPER_color == 'r')),
-                (GR_LOW_Gator | GR_UPP_Gator) & (N_G_RAIN & (Gator_UPPER_color == 'g')),
-                (GR_LOW_Gator | GR_UPP_Gator) & (N_G_RAIN & (Gator_UPPER_color == 'r')),
-                (GR_LOW_Gator | GR_UPP_Gator) & (N_R_RAIN & (Gator_UPPER_color == 'g')),
-                (GR_LOW_Gator | GR_UPP_Gator) & (N_R_RAIN & (Gator_UPPER_color == 'r')),
-            ],
-            [
-                time_lo,
-                time_ab,
-                time_ab,
-                time_lo,
-                time_ab,
-                time_lo,
-                time_lo,
-                time_ab,
-            ],
-            default=numpy.nan
-        )
+        # Combine all support conditions
+        near_swing = (self.AVGPRICE <= swing_support * (1 + threshold_pct)) & \
+                    (self.AVGPRICE >= swing_support * (1 - threshold_pct))
         
-        Trade_time = numpy.where(Timing != 0, self.To + Timing, 0)
+        near_fibo = ((abs(self.AVGPRICE - fib_382) < fib_382 * threshold_pct) |
+                    (abs(self.AVGPRICE - fib_500) < fib_500 * threshold_pct) |
+                    (abs(self.AVGPRICE - fib_618) < fib_618 * threshold_pct))
         
-        self._add_strategy('RTD', RTD)
-        with self._final_lock:  # Thread-safe update
-            self.final_list.append(pandas.DataFrame(Timing, columns=["Timing"]))
-            self.final_list.append(pandas.DataFrame(Trade_time, columns=["Trade_time"]))
-        return
+        near_pivot = ((abs(self.AVGPRICE - S1) < S1 * threshold_pct) |
+                    (abs(self.AVGPRICE - S2) < S2 * threshold_pct))
+        
+        return near_swing | near_fibo | near_pivot
+
+    def _resistance(self, threshold_pct=0.01, lookback=11):
+        """
+        Combine swing highs, Fibonacci levels, and pivot points for resistance detection
+        Returns: Boolean Series where True indicates price is near resistance
+        """
+        # Swing High Resistance
+        swing_highs = (self.High > self.High.shift(1)) & (self.High > self.High.shift(-1))
+        swing_vals = self.High.where(swing_highs)
+        swing_resistance = swing_vals.rolling(lookback, min_periods=1).min().ffill()
+        
+        # Fibonacci Resistance Levels
+        recent_high = self.High.rolling(lookback).max()
+        recent_low = self.Low.rolling(lookback).min()
+        swing_range = recent_high - recent_low
+        fib_382 = recent_low + swing_range * 0.382
+        fib_500 = recent_low + swing_range * 0.5
+        fib_618 = recent_low + swing_range * 0.618
+        
+        # Pivot Point Resistance Levels
+        prev_high = self.High.shift(1)
+        prev_low = self.Low.shift(1)
+        prev_close = self.AVGPRICE.shift(1)
+        PP = (prev_high + prev_low + prev_close) / 3
+        R1 = 2 * PP - prev_low
+        R2 = PP + (prev_high - prev_low)
+        
+        # Combine all resistance conditions
+        near_swing = (self.AVGPRICE <= swing_resistance * (1 + threshold_pct)) & \
+                    (self.AVGPRICE >= swing_resistance * (1 - threshold_pct))
+        
+        near_fibo = ((abs(self.AVGPRICE - fib_382) < fib_382 * threshold_pct) |
+                    (abs(self.AVGPRICE - fib_500) < fib_500 * threshold_pct) |
+                    (abs(self.AVGPRICE - fib_618) < fib_618 * threshold_pct))
+        
+        near_pivot = ((abs(self.AVGPRICE - R1) < R1 * threshold_pct) |
+                    (abs(self.AVGPRICE - R2) < R2 * threshold_pct))
+        
+        return near_swing | near_fibo | near_pivot
+
+    def _mid_channel(self, lookback=11, threshold=0.3):
+        """
+        Improved mid-channel detection that considers:
+        - Price position within recent range
+        - Distance from nearest support/resistance
+        """
+        # Basic channel position
+        recent_high = self.High.rolling(lookback).max()
+        recent_low = self.Low.rolling(lookback).min()
+        position = (self.AVGPRICE - recent_low) / (recent_high - recent_low)
+        
+        # Check distance from nearest support/resistance
+        support_dist = abs(self.AVGPRICE - recent_low) / recent_low
+        resist_dist = abs(self.AVGPRICE - recent_high) / recent_high
+        min_dist = numpy.minimum(support_dist, resist_dist)
+        
+        return (position > threshold) & (position < (1 - threshold)) & (min_dist > 0.02)
 
     def Patterns(self):
         
-        VOL_MA = talib.EMA(self.Volume, timeperiod=11)
-        if 'RSI' in self.df.columns:
-            RSI = self.df['RSI']
-        else:
-            RSI = talib.RSI(self.AVGPRICE, timeperiod=11)
         if all(col in self.df.columns for col in ['MACD_0', 'MACD_1']):
             MACD = self.df['MACD_0']
             MACD_signal = self.df['MACD_1']
@@ -328,14 +288,14 @@ class Indicator_Signals():
         # Define pattern directions based on specific criteria
         pattern_dir = numpy.select(
             [
-                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bull") >= 0) & (RSI < 30),  # Bullish Engulfing + Oversold RSI
+                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bull") >= 0) & (self.RSI_c < 30),  # Bullish Engulfing + Oversold RSI
                 (numpy.char.find(Pattern_Results, "CDLMORNINGSTAR-Bull") >= 0) & (MACD > MACD_signal),  # Morning Star + MACD Crossover
-                (numpy.char.find(Pattern_Results, "CDLHAMMER-Bull") >= 0) & (self.Close < Lower_BBand),  # Hammer + Bollinger Lower Band
-                (numpy.char.find(Pattern_Results, "CDLPIERCING-Bull") >= 0) & (self.Close > EMA),  # Piercing Line + Above EMA
-                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bear") >= 0) & (RSI > 70),  # Bearish Engulfing + Overbought RSI
+                (numpy.char.find(Pattern_Results, "CDLHAMMER-Bull") >= 0) & (self.AVGPRICE < Lower_BBand),  # Hammer + Bollinger Lower Band
+                (numpy.char.find(Pattern_Results, "CDLPIERCING-Bull") >= 0) & (self.AVGPRICE > EMA),  # Piercing Line + Above EMA
+                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bear") >= 0) & (self.RSI_c > 70),  # Bearish Engulfing + Overbought RSI
                 (numpy.char.find(Pattern_Results, "CDLEVENINGSTAR-Bear") >= 0) & (MACD < MACD_signal),  # Evening Star + MACD Bearish Crossover
-                (numpy.char.find(Pattern_Results, "CDLSHOOTINGSTAR-Bear") >= 0) & (self.Close > Upper_BBand),  # Shooting Star + Bollinger Upper Band
-                (numpy.char.find(Pattern_Results, "CDLDARKCLOUDCOVER-Bear") >= 0) & (self.Close < EMA),  # Dark Cloud Cover + Below EMA
+                (numpy.char.find(Pattern_Results, "CDLSHOOTINGSTAR-Bear") >= 0) & (self.AVGPRICE > Upper_BBand),  # Shooting Star + Bollinger Upper Band
+                (numpy.char.find(Pattern_Results, "CDLDARKCLOUDCOVER-Bear") >= 0) & (self.AVGPRICE < EMA),  # Dark Cloud Cover + Below EMA
                 (numpy.char.find(Pattern_Results, "CDLRISING3METHODS-Bull") >= 0),  # Rising Three Methods
                 (numpy.char.find(Pattern_Results, "CDLMARUBOZU-Bull") >= 0),  # Bullish Marubozu (Strong Uptrend)
                 (numpy.char.find(Pattern_Results, "CDLTASUKIGAP-Bull") >= 0),  # Upside Tasuki Gap
@@ -344,25 +304,22 @@ class Indicator_Signals():
                 (numpy.char.find(Pattern_Results, "CDLTASUKIGAP-Bear") >= 0),  # Downside Tasuki Gap
                 (numpy.char.find(Pattern_Results, "CDLDOJI") >= 0) & (ADX > 25),  # Doji with High ADX (Breakout Signal)
                 (numpy.char.find(Pattern_Results, "CDLLONGLEGGEDDOJI") >= 0) & (ADX > 30),  # Long-Legged Doji with High ADX
-                (numpy.char.find(Pattern_Results, "CDLSPINNINGTOP") >= 0) & (self.Volume > VOL_MA),  # Spinning Top with High Volume
-                (numpy.char.find(Pattern_Results, "CDLHIGHWAVE") >= 0) & (self.Volume > VOL_MA),  # High-Wave Pattern with High Volume
-                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bull") >= 0) & (self.Close < Lower_BBand),  # Bullish Engulfing at Support
-                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bear") >= 0) & (self.Close > Upper_BBand)   # Bearish Engulfing at Resistance
+                (numpy.char.find(Pattern_Results, "CDLSPINNINGTOP") >= 0) & (self.Volume > self.VOL_MA),  # Spinning Top with High Volume
+                (numpy.char.find(Pattern_Results, "CDLHIGHWAVE") >= 0) & (self.Volume > self.VOL_MA),  # High-Wave Pattern with High Volume
+                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bull") >= 0) & (self.AVGPRICE < Lower_BBand),  # Bullish Engulfing at Support
+                (numpy.char.find(Pattern_Results, "CDLENGULFING-Bear") >= 0) & (self.AVGPRICE > Upper_BBand)   # Bearish Engulfing at Resistance
             ],
-            ["call", "call", "call", "call",  # Bullish Reversals
-            "put", "put", "put", "put",  # Bearish Reversals
-            "call", "call", "call",  # Bullish Continuation
-            "put", "put", "put",  # Bearish Continuation
-            "call", "call", "call", "call",  # Breakout Patterns
-            "call", "put"  # Support & Resistance Trades
+            [1, 1, 1, 1,  # Bullish Reversals
+            -1, -1, -1, -1,  # Bearish Reversals
+            1, 1, 1,  # Bullish Continuation
+            -1, -1, -1,  # Bearish Continuation
+            1, 1, 1, 1,  # Breakout Patterns
+            1, -1  # Support & Resistance Trades
             ],
-            default=numpy.nan
+            default=0
         )
-        
-        self._add_strategy('pattern', pattern_dir)
-        with self._final_lock:  # Thread-safe update
-            self.final_list.append(pandas.DataFrame(Pattern_Results, columns=["pattern"]))
-        return
+        self.final_list.append(pandas.DataFrame(Pattern_Results, columns=["pattern"]))
+        return {'pattern_dir': pattern_dir}
 
     def Vectorizing(self):
         
@@ -409,7 +366,6 @@ class Indicator_Signals():
         if to_concat:  # only concat if not empty
             diffs = pandas.concat([diffs, pandas.DataFrame(to_concat)], axis=1) * 100
         
-        # Concatenate the 'round1' columns into the 'diffs' DataFrame
         diffs = pandas.concat([diffs, self.df[round1]], axis=1, ignore_index=False)
         exceed_100 = [col for col in exceed_100 if col in diffs.columns]
         diffs[exceed_100] = diffs[exceed_100] / 10
@@ -417,928 +373,27 @@ class Indicator_Signals():
         color_df = pandas.concat([diffs, self.df[color]], axis=1, ignore_index=False)
         self._assign_color_labels(df=color_df, columns=color_df.columns)
 
+        # -------------------------------//////////////////////Time Calculating for Entry the Trade//////////////////////-------------------------------
+        row_sum = abs(diffs.sum(axis=1))
+        row_count = diffs.shape[1]
+        row_mean = row_sum / row_count
+        
+        safe_row_sum = row_sum.clip(lower=1)  # Scale logic using log10 and floor, handling small values
+        scale = (10 ** (numpy.floor(numpy.log10(safe_row_sum)))).astype(int)
+        scale.replace([numpy.inf, -numpy.inf], 1, inplace=True)
+        scale.fillna(1, inplace=True)
+        adjusted = numpy.where(row_mean < 100, row_mean, row_sum / numpy.ceil(scale))  # Apply adjustment
+        row_mean = ((adjusted / 100) * (self.duration / 4)) + 14.5 # duration is half the time of the candle
+
         diffs = diffs.round(1)
 
-        with self._final_lock:  # Thread-safe update
-            self.final_list.append(diffs)
-        return
-
-    def ACO(self):
-        # 1. ACO (Accumulation/Distribution Oscillator)
-        if 'ACO' in self.df.columns:
-            aco_values = self.df['ACO']
-            aco_prev_values = self.df['ACO'].shift(1)
-            conditions = [
-                (aco_values > 0) & (aco_prev_values <= 0),  # Crosses above zero (Buy Signal)
-                (aco_values < 0) & (aco_prev_values >= 0),  # Crosses below zero (Sell Signal)
-                (aco_values > 0) & (aco_prev_values > 0),   # No change, still positive
-                (aco_values < 0) & (aco_prev_values < 0)    # No change, still negative
-            ]
-            choices = ['call', 'put', numpy.nan, numpy.nan]
-            aco_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('ACO', aco_signal)
-        return
-
-    def ADL(self):
-        # 2. ADL (Accumulation/Distribution Line)
-        if 'ADL' in self.df.columns:
-            adl_values = self.df['ADL']
-            adl_prev_values = self.df['ADL'].shift(1)
-            conditions = [
-                (adl_values > adl_prev_values),  # ADL is rising (Call Signal)
-                (adl_values < adl_prev_values),  # ADL is falling (Put Signal)
-                (adl_values > adl_prev_values) & (adl_prev_values > adl_prev_values.shift(1)),  # Reversal from fall to rise
-                (adl_values < adl_prev_values) & (adl_prev_values < adl_prev_values.shift(1))   # Reversal from rise to fall
-            ]
-            choices = ['call', 'put', 'call', 'put']
-            adl_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('ADL', adl_signal)
-        return
-
-    def AROON_0(self):
-        # 3. AROON_0 (Aroon Indicator - Up)
-        if 'AROON_0' in self.df.columns:
-            aroon_0_values = self.df['AROON_0']
-            conditions = [
-                (aroon_0_values > 70),  # Call signal when Aroon_0 rises above 70
-                (aroon_0_values < 30),  # Put signal when Aroon_0 falls below 30
-                (aroon_0_values <= 70) & (aroon_0_values >= 30)  # Hold signal
-            ]
-            choices = ['call', 'put', numpy.nan]
-            aroon_0_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('AROON_0', aroon_0_signal)
-        return
-
-    def AROON_1(self):
-        # 4. AROON_1 (Aroon Indicator - Down)
-        if 'AROON_1' in self.df.columns:
-            aroon_1_values = self.df['AROON_1']
-            conditions = [
-                (aroon_1_values < 30),  # Buy Signal: weakening bearish momentum
-                (aroon_1_values > 70),   # Sell Signal: strong bearish momentum
-                (aroon_1_values <= 70) & (aroon_1_values >= 30)  # Neutral
-            ]
-            choices = ['call', 'put', numpy.nan]
-            aroon_1_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('AROON_1', aroon_1_signal)
-        return
-
-    def AWO(self):
-        # 5. AWO (Awesome Oscillator)
-        if 'AWO' in self.df.columns:
-            awo_values = self.df['AWO']
-            awo_prev_values = self.df['AWO'].shift(1)
-            conditions = [
-                (awo_values > 0) & (awo_prev_values <= 0),  # Crosses above zero
-                (awo_values < 0) & (awo_prev_values >= 0),  # Crosses below zero
-            ]
-            choices = ['call', 'put']
-            awo_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('AWO', awo_signal)
-        return
-
-    def BBANDS(self):
-        # 6-8. Bollinger Bands (BBANDS_0, BBANDS_1, BBANDS_2)
-        if all(col in self.df.columns for col in ['BBANDS_0', 'BBANDS_1', 'BBANDS_2']):
-            price = self.AVGPRICE
-            bbands_0 = self.df['BBANDS_0']
-            bbands_1 = self.df['BBANDS_1']
-            bbands_2 = self.df['BBANDS_2']
-            conditions = [
-                (price <= bbands_2) & (price > bbands_1),  # Buy Signal: touches lower band
-                (price >= bbands_0) & (price < bbands_1),  # Sell Signal: touches upper band
-            ]
-            choices = ['call', 'put']
-            bbands_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('BBANDS', bbands_signal)
-        return
-
-    def Bear_Power(self):
-        # 9. Bear Power
-        if 'Bear_Power' in self.df.columns:
-            bear_power = self.df['Bear_Power']
-            bear_power_prev = self.df['Bear_Power'].shift(1)
-            conditions = [
-                (bear_power > bear_power_prev),  # Rising Bear Power
-                (bear_power < bear_power_prev)    # Falling Bear Power
-            ]
-            choices = ['call', 'put']
-            bear_power_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Bear_Power', bear_power_signal)
-        return
-
-    def Bull_Power(self):
-        # 10. Bull Power
-        if 'Bull_Power' in self.df.columns:
-            bull_power = self.df['Bull_Power']
-            bull_power_prev = self.df['Bull_Power'].shift(1)
-            conditions = [
-                (bull_power > bull_power_prev),  # Rising Bull Power
-                (bull_power < bull_power_prev)    # Falling Bull Power
-            ]
-            choices = ['call', 'put']
-            bull_power_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Bull_Power', bull_power_signal)
-        return
-
-    def Chaikin_Oscillator(self):
-        # 11-13. Chaikin Oscillator (CO, CO_Fast, CO_Slow)
-        for osc in ['CO', 'CO_Fast', 'CO_Slow']:
-            if osc in self.df.columns:
-                osc_values = self.df[osc]
-                osc_prev_values = self.df[osc].shift(1)
-                conditions = [
-                    (osc_values > 0) & (osc_prev_values <= 0),  # Crosses above zero
-                    (osc_values < 0) & (osc_prev_values >= 0)   # Crosses below zero
-                ]
-                choices = ['call', 'put']
-                osc_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(osc, osc_signal)
-        return
-
-    def Ichimoku_Cloud(self):
-        # 14. Ichimoku Cloud (Chimoku)
-        if all(col in self.df.columns for col in ['Senkou_A', 'Senkou_B']):
-            price = self.AVGPRICE
-            chimoku = self.df['Chimoku']
-            senkou_a = self.df['Senkou_A']
-            senkou_b = self.df['Senkou_B']
-            conditions = [
-                (price > chimoku) & (senkou_a > senkou_b),  # Bullish trend
-                (price < chimoku) & (senkou_a < senkou_b)   # Bearish trend
-            ]
-            choices = ['call', 'put']
-            chimoku_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Chimoku', chimoku_signal)
-        return
-
-    def Coppock(self):
-        # 15-16. Coppock Curve and Coppock Raw
-        for coppock in ['Coppock_Curve', 'Coppock_Raw']:
-            if coppock in self.df.columns:
-                coppock_values = self.df[coppock]
-                coppock_prev_values = self.df[coppock].shift(1)
-                conditions = [
-                    (coppock_values > 0) & (coppock_prev_values <= 0),  # Crosses above zero
-                    (coppock_values < 0) & (coppock_prev_values >= 0)    # Crosses below zero
-                ]
-                choices = ['call', 'put']
-                coppock_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(coppock, coppock_signal)
-        return
-
-    def MAA(self):
-        # 17-20. Moving Averages (DEMA, EMA, TEMA, T3, HMA, KAMA, MA)
-        for ma in ['DEMA', 'EMA', 'TEMA', 'T3', 'HMA', 'KAMA', 'MA']:
-            if ma in self.df.columns:
-                price = self.AVGPRICE
-                ma_values = self.df[ma]
-                conditions = [
-                    (price > ma_values) & (ma_values > ma_values.shift(1)),  # Price above rising MA
-                    (price < ma_values) & (ma_values < ma_values.shift(1))   # Price below falling MA
-                ]
-                choices = ['call', 'put']
-                ma_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(ma, ma_signal)
-        return
-
-    def DX(self):
-        # 18. DX (Directional Movement Index)
-        if 'DX' in self.df.columns:
-            dx_values = self.df['DX']
-            conditions = [
-                (dx_values > 25) & (dx_values.shift(1) <= 25),  # Rises above 25
-                (dx_values < 25) & (dx_values.shift(1) >= 25)    # Falls below 25
-            ]
-            choices = ['call', 'put']
-            dx_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('DX', dx_signal)
-        return
-
-    def Force_Index(self):
-        # 20-22. Force Index variants
-        for fi in ['Force_Index', 'Force_Index_MA', 'Force_Index_max_min']:
-            if fi in self.df.columns:
-                fi_values = self.df[fi]
-                if fi == 'Force_Index_max_min':
-                    # For max/min version, we look for peaks and troughs
-                    fi_prev = fi_values.shift(1)
-                    fi_next = fi_values.shift(-1)
-                    conditions = [
-                        (fi_values > fi_prev) & (fi_values > fi_next),  # Peak (potential sell)
-                        (fi_values < fi_prev) & (fi_values < fi_next)   # Trough (potential buy)
-                    ]
-                    choices = ['put', 'call']
-                elif fi == 'Force_Index_MA':
-                    # For MA version, compare to its moving average
-                    fi_ma = fi_values.rolling(window=14).mean()  # Assuming 14-period MA
-                    conditions = [
-                        (fi_values > fi_ma) & (fi_values.shift(1) <= fi_ma.shift(1)),  # Crosses above MA
-                        (fi_values < fi_ma) & (fi_values.shift(1) >= fi_ma.shift(1))   # Crosses below MA
-                    ]
-                    choices = ['call', 'put']
-                else:
-                    # Regular Force Index
-                    conditions = [
-                        (fi_values > 0) & (fi_values.shift(1) <= 0),  # Crosses above zero
-                        (fi_values < 0) & (fi_values.shift(1) >= 0)   # Crosses below zero
-                    ]
-                    choices = ['call', 'put']
-                
-                fi_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(fi, fi_signal)
-        return
-
-    def MAD(self):
-        # 26-28. MAD variants
-        for mad in ['MAD', 'MAD_lower', 'MAD_upper']:
-            if mad in self.df.columns:
-                price = self.AVGPRICE
-                mad_values = self.df[mad]
-                if mad == 'MAD_upper':
-                    conditions = [
-                        (price < mad_values) & (price.shift(1) >= mad_values.shift(1)),  # Crosses below upper
-                        (price > mad_values) & (price.shift(1) <= mad_values.shift(1))   # Crosses above upper
-                    ]
-                    choices = ['call', 'put']  # Note: Upper band has inverse signals
-                elif mad == 'MAD_lower':
-                    conditions = [
-                        (price > mad_values) & (price.shift(1) <= mad_values.shift(1)),  # Crosses above lower
-                        (price < mad_values) & (price.shift(1) >= mad_values.shift(1))   # Crosses below lower
-                    ]
-                    choices = ['call', 'put']
-                else:  # Regular MAD
-                    conditions = [
-                        (price > mad_values),  # Price above MAD
-                        (price < mad_values)   # Price below MAD
-                    ]
-                    choices = ['call', 'put']
-                
-                mad_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(mad, mad_signal)
-        return
-
-    def MAMA(self):
-        # 29-31. MAMA variants
-        for mama in ['MAMA_0', 'MAMA_1']:
-            if mama in self.df.columns:
-                price = self.AVGPRICE
-                mama_values = self.df[mama]
-                conditions = [
-                    (price > mama_values) & (price.shift(1) <= mama_values.shift(1)),  # Crosses above
-                    (price < mama_values) & (price.shift(1) >= mama_values.shift(1))   # Crosses below
-                ]
-                choices = ['call', 'put']
-                mama_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(mama, mama_signal)
-        return
-
-    def MFI(self):
-        # 32. MFI (Money Flow Index)
-        if 'MFI' in self.df.columns:
-            mfi = self.df['MFI']
-            conditions = [
-                (mfi > 20) & (mfi.shift(1) <= 20),  # Crosses above 20
-                (mfi < 80) & (mfi.shift(1) >= 80),  # Crosses below 80
-                (mfi > 50) & (mfi.shift(1) <= 50),  # Crosses above 50
-                (mfi < 50) & (mfi.shift(1) >= 50)   # Crosses below 50
-            ]
-            choices = ['call', 'put', 'call', 'put']
-            mfi_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('MFI', mfi_signal)
-            return
-
-    def MFM(self):
-        # 33-34. MFM and MFV
-        for mf in ['MFM', 'MFV']:
-            if mf in self.df.columns:
-                mf_values = self.df[mf]
-                if mf == 'MFM':
-                    conditions = [
-                        (mf_values > 0),  # Positive MFM
-                        (mf_values < 0)   # Negative MFM
-                    ]
-                else:  # MFV
-                    threshold = mf_values.rolling(window=11).mean()  # Using 14-period average as threshold
-                    conditions = [
-                        (mf_values > threshold) & (mf_values > mf_values.shift(1)),  # Above threshold and rising
-                        (mf_values < threshold) & (mf_values < mf_values.shift(1))   # Below threshold and falling
-                    ]
-                choices = ['call', 'put']
-                mf_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(mf, mf_signal)
-        return
-
-    def MIDPOINT(self):
-        # 35-36. MIDPOINT and MIDPRICE
-        for mid in ['MIDPOINT', 'MIDPRICE']:
-            if mid in self.df.columns:
-                price = self.AVGPRICE
-                mid_values = self.df[mid]
-                conditions = [
-                    (price > mid_values) & (price.shift(1) <= mid_values.shift(1)),  # Crosses above
-                    (price < mid_values) & (price.shift(1) >= mid_values.shift(1))   # Crosses below
-                ]
-                choices = ['call', 'put']
-                mid_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(mid, mid_signal)
-        return
-
-    def MINUS_DI(self):
-        # 37-38. MINUS_DI and PLUS_DI
-        if all(col in self.df.columns for col in ['MINUS_DI', 'PLUS_DI']):
-            minus_di = self.df['MINUS_DI']
-            plus_di = self.df['PLUS_DI']
-            conditions = [
-                (minus_di < plus_di) & (minus_di.shift(1) >= plus_di.shift(1)),  # MINUS_DI crosses below PLUS_DI
-                (minus_di > plus_di) & (minus_di.shift(1) <= plus_di.shift(1))   # MINUS_DI crosses above PLUS_DI
-            ]
-            choices = ['call', 'put']
-            minus_di_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('DI', minus_di_signal)
-        return
-
-    def MINUS_DM(self):
-        for DM in ['PLUS_DM', 'MINUS_DM']:
-            if DM in self.df.columns:
-                dm = self.df[DM]
-                conditions = [
-                    (dm > dm.shift(1)),  # Rising DM
-                    (dm < dm.shift(1))   # Falling DM
-                ]
-                choices = ['call', 'put']
-                plus_dm_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(DM, plus_dm_signal)
-        return
-
-    def TRIX(self):
-        # 39. MOM (Momentum)
-        for x in ['MOM', 'PPO', 'TRIX']:
-            if x in self.df.columns:
-                mom = self.df[x]
-                conditions = [
-                    (mom > 0) & (mom.shift(1) <= 0),  # Crosses above zero
-                    (mom < 0) & (mom.shift(1) >= 0)   # Crosses below zero
-                ]
-                choices = ['call', 'put']
-                mom_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(x, mom_signal)
-        return
-
-    def NATR(self):
-        # 40. NATR (Normalized Average True Range)
-        if 'NATR' in self.df.columns:
-            natr = self.df['NATR']
-            # NATR is typically used as a filter rather than direct signals
-            # We'll create signals based on high volatility
-            threshold = natr.rolling(window=11).mean()  # Using 14-period average as threshold
-            conditions = [
-                (natr > threshold * 1.5),  # High volatility
-                (natr < threshold * 0.5)    # Low volatility
-            ]
-            choices = ['call', 'put']  # Interpretation depends on other indicators
-            natr_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('NATR', natr_signal)
-        return
-
-    def OBV_high(self):
-        # 41-43. OBV variants
-        for obv in ['OBV', 'OBV_high', 'OBV_low']:
-            if obv in self.df.columns:
-                obv_values = self.df[obv]
-                price = self.AVGPRICE
-                conditions = [
-                    (obv_values > obv_values.shift(1)) & (price <= price.shift(1)),  # OBV up, price flat/down
-                    (obv_values < obv_values.shift(1)) & (price >= price.shift(1)),  # OBV down, price flat/up
-                    (obv_values > obv_values.shift(1)) & (price > price.shift(1)),   # Both up
-                    (obv_values < obv_values.shift(1)) & (price < price.shift(1))    # Both down
-                ]
-                choices = ['call', 'put', 'call', 'put']
-                obv_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(obv, obv_signal)
-        return
-
-    def ROCP(self):
-        # 47-49. ROC variants
-        for roc in ['ROC', 'ROCP', 'ROCR100']:
-            if roc in self.df.columns:
-                roc_values = self.df[roc]
-                if roc == 'ROCR100':
-                    threshold = 100
-                else:
-                    threshold = 0
-                conditions = [
-                    (roc_values > threshold) & (roc_values.shift(1) <= threshold),  # Crosses above threshold
-                    (roc_values < threshold) & (roc_values.shift(1) >= threshold)   # Crosses below threshold
-                ]
-                choices = ['call', 'put']
-                roc_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(roc, roc_signal)
-        return
-
-    def SAREXT(self):
-        # 50. SAREXT (Extended Parabolic SAR)
-        if 'SAREXT' in self.df.columns:
-            price = self.AVGPRICE
-            sarext = self.df['SAREXT']
-            conditions = [
-                (price > sarext) & (price.shift(1) <= sarext.shift(1)),  # Price crosses above SAREXT
-                (price < sarext) & (price.shift(1) >= sarext.shift(1))   # Price crosses below SAREXT
-            ]
-            choices = ['call', 'put']
-            sarext_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('SAREXT', sarext_signal)
-        return
-
-    def Stochastic(self):
-        # 51-56. Stochastic variants
-        for stoch in ['STOCHF_0', 'STOCHF_1', 'STOCHRSI_0', 'STOCHRSI_1', 'STOCH_0', 'STOCH_1']:
-            if stoch in self.df.columns:
-                stoch_values = self.df[stoch]
-                if stoch.endswith('_0'):  # %K lines
-                    conditions = [
-                        (stoch_values > 20) & (stoch_values.shift(1) <= 20),  # Crosses above 20
-                        (stoch_values < 80) & (stoch_values.shift(1) >= 80)   # Crosses below 80
-                    ]
-                else:  # %D lines
-                    k_line = self.df[stoch.replace('_1', '_0')]
-                    d_line = self.df[stoch]
-                    conditions = [
-                        (k_line > d_line) & (k_line.shift(1) <= d_line.shift(1)),  # %K crosses above %D
-                        (k_line < d_line) & (k_line.shift(1) >= d_line.shift(1))   # %K crosses below %D
-                    ]
-                choices = ['call', 'put']
-                stoch_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(stoch, stoch_signal)
-        return
-
-    def Senkou(self):
-        # 57-58. Senkou A and B
-        for senkou in ['Senkou_A', 'Senkou_B']:
-            if senkou in self.df.columns:
-                price = self.AVGPRICE
-                senkou_values = self.df[senkou]
-                conditions = [
-                    (price > senkou_values) & (price.shift(1) <= senkou_values.shift(1)),  # Crosses above
-                    (price < senkou_values) & (price.shift(1) >= senkou_values.shift(1))   # Crosses below
-                ]
-                choices = ['call', 'put']
-                senkou_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(senkou, senkou_signal)
-        return
-
-    def TRANGE(self):
-        # 61. TRANGE (True Range)
-        if 'TRANGE' in self.df.columns:
-            trange = self.df['TRANGE']
-            # TRANGE is typically used as a filter
-            threshold = trange.rolling(window=11).mean()  # 14-period average
-            conditions = [
-                (trange > threshold * 1.5),  # High volatility
-                (trange < threshold * 0.5)    # Low volatility
-            ]
-            choices = ['call', 'put']  # Interpretation depends on other indicators
-            trange_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('TRANGE', trange_signal)
-        return
-
-    def TRIMA(self):
-        # 62. TRIMA (Triangular Moving Average)
-        if 'TRIMA' in self.df.columns:
-            price = self.AVGPRICE
-            trima = self.df['TRIMA']
-            conditions = [
-                (price > trima) & (price.shift(1) <= trima.shift(1)),  # Crosses above
-                (price < trima) & (price.shift(1) >= trima.shift(1))   # Crosses below
-            ]
-            choices = ['call', 'put']
-            trima_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('TRIMA', trima_signal)
-        return
-
-    def TSI(self):
-        # 64-65. TSI
-        if 'TSI' in self.df.columns and 'TSI_signal' in self.df.columns:
-            tsi = self.df['TSI']
-            tsi_signal = self.df['TSI_signal']
-            conditions = [
-                (tsi > tsi_signal) & (tsi.shift(1) <= tsi_signal.shift(1)),  # TSI crosses above signal
-                (tsi < tsi_signal) & (tsi.shift(1) >= tsi_signal.shift(1))   # TSI crosses below signal
-            ]
-            choices = ['call', 'put']
-            osc_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('TSI', osc_signal)
-        return
-
-    def TYPPRICE(self):
-        # 66. TYPPRICE (Typical Price)
-        if 'TYPPRICE' in self.df.columns:
-            price = self.AVGPRICE
-            typprice = self.df['TYPPRICE']
-            conditions = [
-                (price > typprice) & (price.shift(1) <= typprice.shift(1)),  # Crosses above
-                (price < typprice) & (price.shift(1) >= typprice.shift(1))   # Crosses below
-            ]
-            choices = ['call', 'put']
-            typprice_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('TYPPRICE', typprice_signal)
-        return
-
-    def Tenkan(self):
-        # 67. Tenkan (Ichimoku Conversion Line)
-        if 'Tenkan' in self.df.columns:
-            price = self.AVGPRICE
-            tenkan = self.df['Tenkan']
-            conditions = [
-                (price > tenkan) & (price.shift(1) <= tenkan.shift(1)),  # Crosses above
-                (price < tenkan) & (price.shift(1) >= tenkan.shift(1))   # Crosses below
-            ]
-            choices = ['call', 'put']
-            tenkan_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Tenkan', tenkan_signal)
-        return
-
-    def ULTOSC(self):
-        # 68. ULTOSC (Ultimate Oscillator)
-        if 'ULTOSC' in self.df.columns:
-            ultosc = self.df['ULTOSC']
-            conditions = [
-                (ultosc < 30) & (ultosc.shift(1) >= 30),  # Falls below 30 then crosses back up
-                (ultosc > 70) & (ultosc.shift(1) <= 70)   # Rises above 70 then crosses back down
-            ]
-            choices = ['call', 'put']
-            ultosc_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('ULTOSC', ultosc_signal)
-        return
-
-    def WCLPRICE(self):
-        # 69. WCLPRICE (Weighted Close Price)
-        if 'WCLPRICE' in self.df.columns:
-            price = self.AVGPRICE
-            wclprice = self.df['WCLPRICE']
-            conditions = [
-                (price > wclprice) & (price > price.shift(1)),  # Above and rising
-                (price < wclprice) & (price < price.shift(1))    # Below and falling
-            ]
-            choices = ['call', 'put']
-            wclprice_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('WCLPRICE', wclprice_signal)
-        return
-
-    def WILLR(self):
-        # 70. WILLR (Williams %R)
-        if 'WILLR' in self.df.columns:
-            willr = self.df['WILLR']
-            conditions = [
-                (willr > -80) & (willr.shift(1) <= -80),  # Crosses above -80
-                (willr < -20) & (willr.shift(1) >= -20)   # Crosses below -20
-            ]
-            choices = ['call', 'put']
-            willr_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('WILLR', willr_signal)
-        return
-
-    def WMA(self):
-        # 71. WMA (Weighted Moving Average)
-        if 'WMA' in self.df.columns:
-            price = self.AVGPRICE
-            wma = self.df['WMA']
-            conditions = [
-                (price > wma) & (price.shift(1) <= wma.shift(1)),  # Crosses above
-                (price < wma) & (price.shift(1) >= wma.shift(1))   # Crosses below
-            ]
-            choices = ['call', 'put']
-            wma_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('WMA', wma_signal)
-        return
-
-    def WRSI(self):
-        # 72-75. WRSI variants
-        for wrsi in ['WRSI', 'WRSI_MA', 'WRSI_Overbought', 'WRSI_Oversold']:
-            if all(col in self.df.columns for col in ['WRSI', wrsi]):
-                wrsi_values = self.df['WRSI']
-                if wrsi == 'WRSI_MA':
-                    wrsi_ma = self.df['WRSI_MA']
-                    conditions = [
-                        (wrsi_values > wrsi_ma) & (wrsi_values.shift(1) <= wrsi_ma.shift(1)),  # Crosses above MA
-                        (wrsi_values < wrsi_ma) & (wrsi_values.shift(1) >= wrsi_ma.shift(1))   # Crosses below MA
-                    ]
-                    choices = ['call', 'put']
-                elif wrsi == 'WRSI_Overbought':
-                    wrsi_ob = self.df[wrsi]
-                    conditions = [
-                        (wrsi_values < wrsi_ob) & (wrsi_values.shift(1) >= wrsi_ob.shift(1))  # Falls from overbought
-                    ]
-                    choices = ['put']
-                elif wrsi == 'WRSI_Oversold':
-                    wrsi_os = self.df[wrsi]
-                    conditions = [
-                        (wrsi_values > wrsi_os) & (wrsi_values.shift(1) <= wrsi_os.shift(1))  # Rises from oversold
-                    ]
-                    choices = ['call']
-                else:  # Regular WRSI
-                    conditions = [
-                        (wrsi_values > 30) & (wrsi_values.shift(1) <= 30),  # Crosses above 30
-                        (wrsi_values < 70) & (wrsi_values.shift(1) >= 70)   # Crosses below 70
-                    ]
-                    choices = ['call', 'put']
-                
-                wrsi_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(wrsi, wrsi_signal)
-        return
-
-    def senkou(self):
-        # 76-77. combined_senkou_Max and Min
-        for senkou in ['combined_senkou_Max', 'combined_senkou_Min']:
-            if senkou in self.df.columns:
-                price = self.AVGPRICE
-                senkou_values = self.df[senkou]
-                if senkou == 'combined_senkou_Max':
-                    conditions = [
-                        (price >= senkou_values) & (price.shift(1) < senkou_values.shift(1)),  # Tests resistance
-                        (price < senkou_values) & (price.shift(1) >= senkou_values.shift(1))   # Rejects from resistance
-                    ]
-                    choices = ['put', 'call']
-                else:  # combined_senkou_Min
-                    conditions = [
-                        (price <= senkou_values) & (price.shift(1) > senkou_values.shift(1)),  # Tests support
-                        (price > senkou_values) & (price.shift(1) <= senkou_values.shift(1))   # Bounces from support
-                    ]
-                    choices = ['call', 'put']
-                
-                senkou_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(senkou, senkou_signal)
-        return
-
-    def channel(self):
-        # 79-81. Envelope, Keltner Channels
-        for channel in ['donchian', 'envelope', 'keltner']:
-            lower = f'{channel}_lower'
-            upper = f'{channel}_upper'
-            if all(col in self.df.columns for col in [lower, upper]):
-                price = self.AVGPRICE
-                lower_values = self.df[lower]
-                upper_values = self.df[upper]
-                if channel == 'keltner':
-                    conditions = [
-                        (price <= upper_values),  # Touches upper band
-                        (price >= lower_values),  # Touches lower band
-                        (price > upper_values) & (price.shift(1) <= upper_values.shift(1)),  # Crosses above upper
-                        (price < lower_values) & (price.shift(1) >= lower_values.shift(1))   # Crosses below lower
-                    ]
-                    choices = ['put', 'call', 'put', 'call']
-                else:
-                    conditions = [
-                        (price <= lower_values),  # Touches lower band
-                        (price >= upper_values),  # Touches upper band
-                        (price > lower_values) & (price.shift(1) <= lower_values.shift(1)),  # Crosses above lower
-                        (price < upper_values) & (price.shift(1) >= upper_values.shift(1))   # Crosses below upper
-                    ]
-                    choices = ['call', 'put', 'call', 'put']
-                
-                channel_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(channel, channel_signal)
-        return
-
-    def Rainbow(self):
-        # 83-85. Rainbow Oscillator variants
-        if 'rb' in self.df.columns:
-            rb = self.df['rb']
-            conditions = [
-                (rb > rb.shift(1)) & (rb.shift(1) > rb.shift(2)),  # Upward stacking
-                (rb < rb.shift(1)) & (rb.shift(1) < rb.shift(2))   # Downward stacking
-            ]
-            choices = ['call', 'put']
-            rb_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('rb', rb_signal)
-        return
-
-    def rb_slope(self):
-        if 'rb_slope' in self.df.columns:
-            rb_slope = self.df['rb_slope']
-            conditions = [
-                (rb_slope > 0) & (rb_slope > rb_slope.shift(1)),  # Positive and increasing
-                (rb_slope < 0) & (rb_slope < rb_slope.shift(1))   # Negative
-            ]
-            choices = ['call', 'put']
-            rb_slope_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('rb_slope', rb_slope_signal)
-        return
-
-    def Rainbow_Oscillator(self):
-        if 'rbo' in self.df.columns:
-            rbo = self.df['rbo']
-            conditions = [
-                (rbo > rbo.shift(1)) & (rbo.shift(1) <= rbo.shift(2)),  # Turns upward
-                (rbo < rbo.shift(1)) & (rbo.shift(1) >= rbo.shift(2))    # Turns downward
-            ]
-            choices = ['call', 'put']
-            rbo_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('rbo', rbo_signal)
-        return
-
-    def Wicks(self):
-        # 86. Wick analysis
-        if all(col in self.df.columns for col in ['wick_up', 'wick_low']):
-            wick_low = self.df['wick_low']
-            wick_up = self.df['wick_up']
-            price_change = self.df['close'] - self.df['open']
-            conditions = [
-                (wick_low > (self.df['max'] - self.df['min']) * 0.3) & (price_change > 0),  # Long lower wick, green candle
-                (wick_up > (self.df['max'] - self.df['min']) * 0.3) & (price_change < 0)     # Long upper wick, red candle
-            ]
-            choices = ['call', 'put']
-            wick_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('wicks', wick_signal)
-        return
-
-    def Gator(self):
-        # 87-89. Gator indicators
-        if all(col in self.df.columns for col in ['Gator_JAW', 'Gator_TEETH', 'Gator_LIPS']):
-            jaw = self.df['Gator_JAW']
-            teeth = self.df['Gator_TEETH']
-            lips = self.df['Gator_LIPS']
-            conditions = [
-                (lips > teeth) & (teeth > jaw) & (lips.shift(1) <= teeth.shift(1)),  # Lips crosses above
-                (lips < teeth) & (teeth < jaw) & (lips.shift(1) >= teeth.shift(1))   # Lips crosses below
-            ]
-            choices = ['call', 'put']
-            gator_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Gator', gator_signal)
-        return
-
-    def Gator_bars(self):
-        if all(col in self.df.columns for col in ['Gator_UPPER', 'Gator_LOWER']):
-            gator_upper = self.df['Gator_UPPER']
-            gator_lower = self.df['Gator_LOWER']
-            conditions = [
-                (gator_upper > gator_upper.shift(1)),  # Upper bars growing
-                (gator_lower > gator_lower.shift(1))    # Lower bars growing
-            ]
-            choices = ['call', 'put']
-            gator_bars_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Gator_bars', gator_bars_signal)
-        return
-
-    def Gator_Expansion(self):
-        if 'Gator_Expansion' in self.df.columns:
-            Gator_Expansion = self.df['Gator_Expansion']
-            conditions = [
-                (Gator_Expansion > 0),
-                (Gator_Expansion < 0)
-            ]
-            choices = ['call', 'put']
-            Gator_Expansion_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Gator_Expansion', Gator_Expansion_signal)
-        return
-
-    def HPR(self):
-        # 91. HPR (Highest Price Range)
-        if 'HPR' in self.df.columns:
-            hpr = self.df['HPR']
-            price = self.AVGPRICE
-            conditions = [
-                (price > hpr) & (price.shift(1) <= hpr.shift(1)),  # Breaks above HPR
-                (price < hpr) & (price >= hpr.shift(1)) & (price.shift(1) >= hpr.shift(1))  # Rejects at HPR
-            ]
-            choices = ['call', 'put']
-            hpr_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HPR', hpr_signal)
-        return
-
-    def HSI(self):
-        # 92. HSI (Hurst Signal Indicator)
-        if 'HSI' in self.df.columns:
-            hsi = self.df['HSI']
-            conditions = [
-                (hsi > hsi.shift(1)),  # Rising HSI
-                (hsi < hsi.shift(1))    # Falling HSI
-            ]
-            choices = ['call', 'put']
-            hsi_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HSI', hsi_signal)
-        return
-
-    def HT_DCPERIOD(self):
-        # 93-98. Hilbert Transform indicators
-        if 'HT_DCPERIOD' in self.df.columns:
-            ht_dcperiod = self.df['HT_DCPERIOD']
-            conditions = [
-                (ht_dcperiod > ht_dcperiod.shift(1)),  # Period lengthening
-                (ht_dcperiod < ht_dcperiod.shift(1))    # Period shortening
-            ]
-            choices = ['call', 'put']
-            ht_dcperiod_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HT_DCPERIOD', ht_dcperiod_signal)
-        return
-
-    def HT_DCPHASE(self):
-        if 'HT_DCPHASE' in self.df.columns:
-            ht_dcphase = self.df['HT_DCPHASE']
-            conditions = [
-                (ht_dcphase > ht_dcphase.shift(1)),  # Phase increasing
-                (ht_dcphase < ht_dcphase.shift(1))    # Phase decreasing
-            ]
-            choices = ['call', 'put']
-            ht_dcphase_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HT_DCPHASE', ht_dcphase_signal)
-        return
-
-    def HT_PHASOR(self):
-        if all(col in self.df.columns for col in ['HT_PHASOR_0', 'HT_PHASOR_1']):
-            phasor_0 = self.df['HT_PHASOR_0']
-            phasor_1 = self.df['HT_PHASOR_1']
-            conditions = [
-                (phasor_0 > phasor_1) & (phasor_0.shift(1) <= phasor_1.shift(1)),  # Phasor0 crosses above
-                (phasor_0 < phasor_1) & (phasor_0.shift(1) >= phasor_1.shift(1))   # Phasor0 crosses below
-            ]
-            choices = ['call', 'put']
-            phasor_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HT_PHASOR', phasor_signal)
-        return
-
-    def HT_SINE(self):
-        if all(col in self.df.columns for col in ['HT_SINE_0', 'HT_SINE_1']):
-            sine_0 = self.df['HT_SINE_0']
-            sine_1 = self.df['HT_SINE_1']
-            conditions = [
-                (sine_0 > sine_1) & (sine_0.shift(1) <= sine_1.shift(1)),  # Sine0 crosses above
-                (sine_0 < sine_1) & (sine_0.shift(1) >= sine_1.shift(1))   # Sine0 crosses below
-            ]
-            choices = ['call', 'put']
-            sine_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HT_SINE', sine_signal)
-        return
-
-    def HT_TRENDLINE(self):
-        if 'HT_TRENDLINE' in self.df.columns:
-            price = self.AVGPRICE
-            ht_trendline = self.df['HT_TRENDLINE']
-            conditions = [
-                (price > ht_trendline) & (price.shift(1) <= ht_trendline.shift(1)),  # Crosses above
-                (price < ht_trendline) & (price.shift(1) >= ht_trendline.shift(1))   # Crosses below
-            ]
-            choices = ['call', 'put']
-            ht_trendline_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HT_TRENDLINE', ht_trendline_signal)
-        return
-
-    def HT_TRENDMODE(self):
-        if 'HT_TRENDMODE' in self.df.columns:
-            ht_trendmode = self.df['HT_TRENDMODE']
-            conditions = [
-                (ht_trendmode == 1),  # Trending
-                (ht_trendmode == 0)   # Not trending
-            ]
-            choices = ['call', 'put']  # Interpretation depends on other indicators
-            ht_trendmode_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HT_TRENDMODE', ht_trendmode_signal)
-        return
-
-    def Historical(self):
-        # 99. HV (Historical Volatility)
-        if 'HV' in self.df.columns:
-            hv = self.df['HV']
-            threshold = hv.rolling(window=11).mean()
-            conditions = [
-                (hv > threshold * 1.5),  # High volatility
-                (hv < threshold * 0.5)   # Low volatility
-            ]
-            choices = ['call', 'put']  # Interpretation depends on other indicators
-            hv_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('HV', hv_signal)
-        return
-
-    def KST(self):
-        # 101. KST (Know Sure Thing)
-        if all(col in self.df.columns for col in ['KST', 'KST_Signal']):
-            kst = self.df['KST']
-            kst_signal = self.df['KST_Signal']
-            conditions = [
-                (kst > kst_signal) & (kst.shift(1) <= kst_signal.shift(1)),  # KST crosses above signal
-                (kst < kst_signal) & (kst.shift(1) >= kst_signal.shift(1))   # KST crosses below signal
-            ]
-            choices = ['call', 'put']
-            kst_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('KST', kst_signal)
-        return
-
-    def Kijun(self):
-        # 102. Kijun (Ichimoku Base Line)
-        if 'Kijun' in self.df.columns:
-            price = self.AVGPRICE
-            kijun = self.df['Kijun']
-            conditions = [
-                (price > kijun) & (price.shift(1) <= kijun.shift(1)),  # Crosses above
-                (price < kijun) & (price.shift(1) >= kijun.shift(1))   # Crosses below
-            ]
-            choices = ['call', 'put']
-            kijun_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('Kijun', kijun_signal)
-        return
+        self.final_list.append(diffs)
+        self.final_list.append(pandas.DataFrame(row_mean.round(2), columns=["Timing"]))
+        return {}
 
     def MACD(self):
         # 104-109. MACDEXT/MACDFIX variants
+        dic = {}
         for macd_type in ['MACD', 'MACDEXT', 'MACDFIX']:
             macd_line = f"{macd_type}_0"
             signal_line = f"{macd_type}_1"
@@ -1347,187 +402,1376 @@ class Indicator_Signals():
                 macd_line = self.df[macd_line]
                 signal_line = self.df[signal_line]
                 histogram = self.df[histogram]
-                conditions = [
-                    (macd_line > 0) & (macd_line.shift(1) <= 0) & (macd_line > signal_line) & (macd_line.shift(1) <= signal_line.shift(1)) & (histogram > 0) & (histogram > histogram.shift(1)) & (histogram.shift(1) <= 0),  # MACD crosses above signal
-                    (macd_line < 0) & (macd_line.shift(1) >= 0) & (macd_line < signal_line) & (macd_line.shift(1) >= signal_line.shift(1)) & (histogram < 0) & (histogram < histogram.shift(1)) & (histogram.shift(1) >= 0),  # MACD crosses below signal
+
+                # Divergence (you may need to calculate LL/HL logic separately using rolling or shift windows)
+                bullish_divergence = (self.Low < self.Low.shift(1)) & (macd_line > macd_line.shift(1))  # Lower low in price, higher low in MACD
+                bearish_divergence = (self.High > self.High.shift(1)) & (macd_line < macd_line.shift(1))  # Higher high in price, lower high in MACD
+
+                macd_cross_up = (macd_line > signal_line) & (macd_line.shift(1) < signal_line.shift(1))
+                macd_cross_down = (macd_line < signal_line) & (macd_line.shift(1) > signal_line.shift(1))
+
+                histogram_green = (histogram > 0) & (histogram.shift(1) < 0) & (histogram > histogram.shift(1))
+                histogram_red = (histogram < 0) & (histogram.shift(1) > 0) & (histogram < histogram.shift(1))
+
+                close_above_mid = self.Close > ((self.Open + self.Close) / 2)
+                close_below_mid = self.Close < ((self.Open + self.Close) / 2)
+
+                Zero_Crossover = (macd_line > 0) & (macd_line.shift(1) <= 0)
+                Zero_Crossbelow = (macd_line < 0) & (macd_line.shift(1) >= 0)
+                Uptrend_Confirmation = (macd_line > macd_line.shift(1)) & (signal_line > signal_line.shift(1))
+                Downtrend_Confirmation = (macd_line < macd_line.shift(1)) & (signal_line < signal_line.shift(1))
+
+                # Define conditions for each entry type
+                call_conditions = [
+                    # Full combination
+                    (bullish_divergence & macd_cross_up & histogram_green & close_above_mid & Zero_Crossover & Uptrend_Confirmation & self.support & self.price_above_ema),
+                    # Crossover + histogram + candle
+                    (macd_cross_up & histogram_green & self.support & self.price_above_ema),
+                    # Divergence + support/oversold
+                    (bullish_divergence & self.support)
                 ]
-                choices = ['call', 'put']
-                macd_signal = numpy.select(conditions, choices, default=numpy.nan)
-                self._add_strategy(macd_type, macd_signal)
-        return
+                
+                put_conditions = [
+                    # Full combination
+                    (bearish_divergence & macd_cross_down & histogram_red & close_below_mid & Zero_Crossbelow & Downtrend_Confirmation & self.resistance & self.price_below_ema),
+                    # Crossover + histogram + candle
+                    (close_below_mid & histogram_red & self.resistance & self.price_below_ema),
+                    # Divergence + resistance/overbought
+                    (bearish_divergence & self.resistance)
+                ]
+                
+                # Combine conditions with OR logic
+                call_condition = numpy.logical_or.reduce(call_conditions)
+                put_condition = numpy.logical_or.reduce(put_conditions)
+                
+                # Apply filters to remove false signals
+                valid_call = call_condition & ~self.mid_channel
+                valid_put = put_condition & ~self.mid_channel
+                
+                # Create signals using numpy.select
+                signals = numpy.select(
+                    condlist=[valid_call, valid_put],
+                    choicelist=[1, -1],
+                    default=0
+                )
 
-    def AD(self):
-        # 1. AD (Accumulation/Distribution Line)
-        if 'AD' in self.df.columns:
-            ad = self.df['AD']
-            conditions = [
-                (ad > ad.shift(1)),  # Rising AD
-                (ad < ad.shift(1))   # Falling AD
-            ]
-            choices = ['call', 'put']
-            ad_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('AD', ad_signal)
-        return
+                dic[macd_type] = signals
+        return dic
 
-    def ADXR(self):
-        # 2. ADXR (Average Directional Movement Index Rating)
-        if 'ADXR' in self.df.columns:
-            adxr = self.df['ADXR']
-            conditions = [
-                (adxr > 25) & (adxr.shift(1) <= 25),  # Rises above 25
-                (adxr < 25) & (adxr.shift(1) >= 25)    # Falls below 25
+    def RSI(self):
+        EMA_RSI = talib.EMA(self.RSI_c, timeperiod=11)
+        rsi_cross_above_30 = (self.RSI_c > 30) & (self.RSI_c.shift(1) <= 30)
+        rsi_cross_below_70 = (self.RSI_c < 70) & (self.RSI_c.shift(1) >= 70)
+        RSI_above_EMA = (self.RSI_c < 30) & (self.RSI_c > EMA_RSI)
+        RSI_below_EMA = (self.RSI_c > 70) & (self.RSI_c < EMA_RSI)
+        Bullish_divergence = (self.AVGPRICE < self.AVGPRICE.shift(1)) & (self.RSI_c > self.RSI_c.shift(1))
+        Bearish_divergence = (self.AVGPRICE > self.AVGPRICE.shift(1)) & (self.RSI_c < self.RSI_c.shift(1))
+        uptrend = (self.RSI_c > 50) & (self.RSI_c > self.RSI_c.shift(1))
+        downtrend = (self.RSI_c < 50) & (self.RSI_c < self.RSI_c.shift(1))
+        RSI_moving_up = (self.RSI_c > 40) & (self.RSI_c < 60) & (self.RSI_c > self.RSI_c.shift(1))
+        RSI_moving_dwn= (self.RSI_c > 40) & (self.RSI_c < 60) & (self.RSI_c < self.RSI_c.shift(1))
+        RSI_bouncing = (self.RSI_c.round(0) == 30) & (self.RSI_c > self.RSI_c.shift(1))
+        RSI_reversing = (self.RSI_c.round(0) == 70) & (self.RSI_c < self.RSI_c.shift(1))
+                
+        call_conditions = [
+            (rsi_cross_above_30 & uptrend & RSI_moving_up & RSI_bouncing & Bullish_divergence & RSI_above_EMA & self.bullish_candle & self.price_above_ema),
+            (rsi_cross_above_30 & uptrend & RSI_moving_up & Bullish_divergence & RSI_above_EMA & self.bullish_candle & self.price_above_ema),
+            (rsi_cross_above_30 & Bullish_divergence & RSI_above_EMA & self.bullish_candle & self.price_above_ema),
+            (rsi_cross_above_30 & self.bullish_candle & self.price_above_ema)
+        ]
+        put_conditions = [
+            (rsi_cross_below_70 & downtrend & RSI_moving_dwn & RSI_reversing & Bearish_divergence & RSI_below_EMA & self.bearish_candle & self.price_below_ema),
+            (rsi_cross_below_70 & downtrend & RSI_moving_dwn & Bearish_divergence & RSI_below_EMA & self.bearish_candle & self.price_below_ema),
+            (rsi_cross_below_70 & Bearish_divergence & RSI_below_EMA & self.bearish_candle & self.price_below_ema),
+            (rsi_cross_below_70 & self.bearish_candle & self.price_below_ema)
+        ]
+        
+        # Combine conditions with OR in case you add alternative entry conditions later
+        call_condition = numpy.logical_or.reduce(call_conditions)
+        put_condition = numpy.logical_or.reduce(put_conditions)
+        
+        # Create signals using numpy.select
+        signals = numpy.select(
+            condlist=[call_condition, put_condition],
+            choicelist=[1, -1],
+            default=0
+        )
+        return {'RSI': signals}
+
+    def BOP(self):
+        # 6. BOP (Balance of Power)
+        bop_cross_above = (self.BOP_c > 0) & (self.BOP_c.shift(1) <= 0)
+        bop_cross_below = (self.BOP_c < 0) & (self.BOP_c.shift(1) >= 0)
+        # Create signals using numpy.select
+        signals = numpy.select(
+            condlist=[
+                (bop_cross_above & self.bullish_candle & self.volume_spike),
+                (bop_cross_below & self.bearish_candle & self.volume_spike)
+            ],
+            choicelist=[1, -1],  # 1 for Call, -1 for Put
+            default=0             # 0 for no signal
+        )
+        return {'BOP': signals}
+
+    def Wicks(self):
+        # 86. Wick analysis
+        if all(col in self.df.columns for col in ['wick_up', 'wick_low']):
+            wick_low = self.df['wick_low'] / 100
+            wick_up = self.df['wick_up']  / 100
+
+            # Wick rejection conditions
+            lower_wick_rejection = (wick_low >= (1.5 * self.BOP_c))
+            upper_wick_rejection = (wick_up >= (1.5 * self.BOP_c))
+
+            # Confirmation candles 
+            next_open_above = self.Open > self.Close.shift(1)
+            next_open_below = self.Open < self.Close.shift(1)
+
+            # Generate signals
+            signals = numpy.select(
+                condlist=[
+                    (lower_wick_rejection & self.support & next_open_above & self.volume_spike),
+                    (upper_wick_rejection & self.resistance & next_open_below & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'wicks': signals}
+
+    def BBANDS(self):
+        # 6-8. Bollinger Bands (BBANDS_0, BBANDS_1, BBANDS_2)
+        if all(col in self.df.columns for col in ['BBANDS_0', 'BBANDS_1', 'BBANDS_2']):
+            bbands_0 = self.df['BBANDS_0']
+            bbands_1 = self.df['BBANDS_1']
+            bbands_2 = self.df['BBANDS_2']
+            bandwidth = bbands_0 - bbands_2
+            bandwidth_EMA = talib.EMA(bandwidth, timeperiod=11) * 0.5
+            touches_lower = self.AVGPRICE <= bbands_2
+            touches_upper = self.AVGPRICE >= bbands_0
+            reversal_up = self.AVGPRICE > bbands_1
+            reversal_down = self.AVGPRICE < bbands_1
+            uptrend = self.AVGPRICE > self.EMA_c
+            downtrend = self.AVGPRICE < self.EMA_c
+            Breakout = (bandwidth > bandwidth_EMA)
+            Breakdown = (bandwidth < bandwidth_EMA)
+            Fibonacci_lower = (self.AVGPRICE <= (bbands_2 * 0.618))
+            Fibonacci_upper = (self.AVGPRICE >= (bbands_0 * 0.382))
+
+            # BUY (Call) Conditions
+            call_conditions = [
+                (touches_lower.shift(1) & reversal_up & Fibonacci_lower & self.volume_spike & uptrend),
+                (touches_lower.shift(1) & reversal_up & Breakout & self.volume_spike & uptrend),
+                (touches_lower.shift(1) & reversal_up & self.volume_spike & uptrend)
             ]
-            choices = ['call', 'put']
-            adxr_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('ADXR', adxr_signal)
-        return
+            
+            # SELL (Put) Conditions
+            put_conditions = [
+                (touches_upper.shift(1) & reversal_down & Fibonacci_upper & self.volume_spike & downtrend),
+                (touches_upper.shift(1) & reversal_down & Breakdown & self.volume_spike & downtrend),
+                (touches_upper.shift(1) & reversal_down & self.volume_spike & downtrend)
+            ]
+            
+            # Generate signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],  # 1 for Call, -1 for Put
+                default=0             # 0 for no signal
+            )
+            return {'BBANDS': signals}
+
+    def channels(self):
+        # 79-81. Envelope, Keltner Channels
+        dic = {}
+        for channel in ['donchian', 'envelope', 'keltner']:
+            lower = f'{channel}_lower'
+            upper = f'{channel}_upper'
+            if all(col in self.df.columns for col in [lower, upper]):
+                lower_values = self.df[lower]
+                upper_values = self.df[upper]
+                if channel == 'envelope':
+                    # Signal conditions
+                    touches_lower = self.AVGPRICE <= lower_values
+                    touches_upper = self.AVGPRICE >= upper_values
+                    
+                    # Reversal confirmation (next candle)
+                    next_open_above_lower = self.Open.shift(-1) > lower_values.shift(-1)
+                    next_close_above_lower = self.Close.shift(-1) > lower_values.shift(-1)
+                    
+                    next_open_below_upper = self.Open.shift(-1) < upper_values.shift(-1)
+                    next_close_below_upper = self.Close.shift(-1) < upper_values.shift(-1)
+                    
+                    # Generate raw signals
+                    signals = numpy.select(
+                            condlist=[
+                                (touches_lower & next_open_above_lower & next_close_above_lower & self.volume_spike),
+                                (touches_upper & next_open_below_upper & next_close_below_upper & self.volume_spike)
+                            ],
+                            choicelist=[1, -1],
+                            default=0
+                        )
+
+                else:
+                    
+                    channel_name = f'{channel}_channel'
+                    if channel_name in self.df.columns:
+                        channel_width = self.df[f'{channel}_channel']
+                    else:
+                        channel_width = pandas.Series(0, index=lower_values.index)
+                    
+                    # Breakout conditions
+                    bullish_break = self.AVGPRICE > upper_values
+                    bearish_break = self.AVGPRICE < lower_values
+                    
+                    # Continuation confirmation
+                    next_open_up = self.Open > self.Close.shift(1)
+                    next_open_down = self.Open < self.Close.shift(1)
+
+                    Breakout = (channel_width < numpy.percentile(channel_width, 20)) & (channel_width > numpy.percentile(channel_width, 80))
+
+                    # BUY (Call) Conditions
+                    call_conditions = [
+                        (bullish_break & next_open_up & Breakout & self.volume_spike),
+                        (bullish_break & next_open_up & self.volume_spike)
+                    ]
+                    
+                    # SELL (Put) Conditions
+                    put_conditions = [
+                        (bearish_break & next_open_down & Breakout & self.volume_spike),
+                        (bearish_break & next_open_down & self.volume_spike)
+                    ]
+                
+                    # Generate raw signals
+                    signals = numpy.select(
+                            condlist=[
+                                numpy.logical_or.reduce(call_conditions),
+                                numpy.logical_or.reduce(put_conditions)
+                            ],
+                            choicelist=[1, -1],
+                            default=0
+                        )
+                
+                dic[channel] = signals
+        return dic
+
+    def SAR(self):
+        # 9. Parabolic SAR (Stop and Reverse)
+        dic = {}
+        for indic in ['SAR', 'SAREXT']:
+            if indic in self.df.columns:
+                SAR = self.df[indic]
+                psar_below = SAR < self.AVGPRICE  # Bullish condition
+                psar_above = SAR > self.AVGPRICE  # Bearish condition
+                
+                # Detect PSAR flips (change in direction)
+                psar_flip_up = (psar_below & (SAR.shift(1) >= self.AVGPRICE.shift(1)))
+                psar_flip_down = (psar_above & (SAR.shift(1) <= self.AVGPRICE.shift(1)))
+
+                EMA_crosses_above = (self.EMA_c > self.EMA_c.shift(1)) & (self.EMA_c < self.EMA_c.shift(1))
+                EMA_crosses_below = (self.EMA_c < self.EMA_c.shift(1)) & (self.EMA_c > self.EMA_c.shift(1))
+
+                # BUY (Call) Conditions
+                call_conditions = [
+                    # PSAR flip up + trend + volume
+                    (psar_flip_up & EMA_crosses_above & self.price_above_ema & self.volume_spike),
+                    (psar_flip_up & self.price_above_ema & self.volume_spike)
+                ]
+                
+                # SELL (Put) Conditions
+                put_conditions = [
+                    # PSAR flip down + trend + volume
+                    (psar_flip_down & EMA_crosses_below & self.price_below_ema & self.volume_spike),
+                    (psar_flip_down & self.price_below_ema & self.volume_spike)
+                ]
+                
+                # Generate signals
+                signals = numpy.select(
+                    condlist=[
+                        numpy.logical_or.reduce(call_conditions),
+                        numpy.logical_or.reduce(put_conditions)
+                    ],
+                    choicelist=[1, -1],  # 1 for Call, -1 for Put
+                    default=0
+                )
+                dic[indic] = signals
+        return dic
 
     def APO(self):
         # 3. APO (Absolute Price Oscillator)
         if 'APO' in self.df.columns:
-            apo = self.df['APO']
-            conditions = [
-                (apo > 0) & (apo.shift(1) <= 0),  # Crosses above zero
-                (apo < 0) & (apo.shift(1) >= 0)    # Crosses below zero
-            ]
-            choices = ['call', 'put']
-            apo_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('APO', apo_signal)
-        return
+            APO = self.df['APO']
+            Signal_Line = talib.EMA(APO, timeperiod=11)
+            
+            # Signal Conditions
+            apo_above_signal = APO > Signal_Line
+            apo_below_signal = APO < Signal_Line
+            
+            apo_positive = APO > 0
+            apo_negative = APO < 0
+            
+            # Cross conditions (for exact crossover points)
+            apo_cross_up = apo_above_signal & (~apo_above_signal.shift(1).astype(bool))
+            apo_cross_down = apo_below_signal & (~apo_below_signal.shift(1).astype(bool))
+
+            # Generate signals
+            signals = numpy.select(
+                condlist=[
+                    (apo_cross_up & apo_positive & self.price_above_ema),
+                    (apo_cross_down & apo_negative & self.price_below_ema)
+                ],
+                choicelist=[1, -1],  # 1 for Call, -1 for Put
+                default=0
+            )
+            return {'APO': signals}
+
+    def AROON(self):
+        # 3. AROON (Aroon Indicator)
+        if all(col in self.df.columns for col in ['AROON_0', 'AROON_1']):
+            aroon_up = self.df['AROON_1']
+            aroon_down = self.df['AROON_0']
+            # Signal Conditions
+            aroon_cross_up = (aroon_up > aroon_down) & (aroon_up.shift(1) <= aroon_down.shift(1))
+            aroon_cross_down = (aroon_down > aroon_up) & (aroon_down.shift(1) <= aroon_up.shift(1))
+            
+            aroon_strong_up = aroon_up > 50
+            aroon_strong_down = aroon_down > 50
+            
+            # Generate signals
+            signals = numpy.select(
+                condlist=[
+                    (aroon_cross_up & aroon_strong_up & self.price_above_ema),
+                    (aroon_cross_down & aroon_strong_down & self.price_below_ema)
+                ],
+                choicelist=[1, -1],  # 1 for Call, -1 for Put
+                default=0
+            )
+            return {'AROON': signals}
 
     def AROONOSC(self):
         # 4. AROONOSC (Aroon Oscillator)
         if 'AROONOSC' in self.df.columns:
-            aroonosc = self.df['AROONOSC']
-            conditions = [
-                (aroonosc > 0) & (aroonosc.shift(1) <= 0),  # Crosses above zero
-                (aroonosc < 0) & (aroonosc.shift(1) >= 0)    # Crosses below zero
-            ]
-            choices = ['call', 'put']
-            aroonosc_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('AROONOSC', aroonosc_signal)
-        return
+            Aroon_Osc = self.df['AROONOSC']
+            # Signal Conditions
+            cross_above_zero = (Aroon_Osc > 0) & (Aroon_Osc.shift(1) <= 0)
+            cross_below_zero = (Aroon_Osc < 0) & (Aroon_Osc.shift(1) >= 0)
+            
+            was_oversold = Aroon_Osc.shift(1) < self.support
+            was_overbought = Aroon_Osc.shift(1) > self.resistance
+            
+            # Strong Trend Zones (NEW)
+            strong_uptrend = (Aroon_Osc >= 50) & (Aroon_Osc <= 100)  # 50-100
+            strong_downtrend = (Aroon_Osc <= -50) & (Aroon_Osc >= -100)  # -50 to -100
 
-    def AVG(self):
-        # 5. AVGPRICE (Average Price)
-        if 'AVGPRICE' in self.df.columns:
-            price = self.df['close']
-            avgprice = self.df['AVGPRICE']
-            conditions = [
-                (price > avgprice) & (price.shift(1) <= avgprice.shift(1)),  # Crosses above
-                (price < avgprice) & (price.shift(1) >= avgprice.shift(1))   # Crosses below
+            strong_up = Aroon_Osc > strong_uptrend
+            strong_down = Aroon_Osc < strong_downtrend
+            
+            # BUY (Call) Conditions
+            call_conditions = [
+                (cross_above_zero & was_oversold & self.price_above_ema),
+                (strong_up & self.price_above_ema)
             ]
-            choices = ['call', 'put']
-            avgprice_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('AVGPRICE', avgprice_signal)
-        return
-
-    def BOP(self):
-        # 6. BOP (Balance of Power)
-        if 'BOP' in self.df.columns:
-            bop = self.df['BOP']
-            conditions = [
-                (bop > 0) & (bop.shift(1) <= 0),  # Crosses above zero
-                (bop < 0) & (bop.shift(1) >= 0)    # Crosses below zero
+            # SELL (Put) Conditions
+            put_conditions = [
+                (cross_below_zero & was_overbought & self.price_below_ema),
+                (strong_down & self.price_below_ema)
             ]
-            choices = ['call', 'put']
-            bop_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('BOP', bop_signal)
-        return
+            
+            # Generate signals
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],  # 1 for Call, -1 for Put
+                default=0
+            )
+            return {'AROONOSC': signals}
 
     def CCI(self):
         # 7. CCI (Commodity Channel Index)
         if 'CCI' in self.df.columns:
-            cci = self.df['CCI']
-            conditions = [
-                (cci > -100) & (cci.shift(1) <= -100),  # Crosses above -100
-                (cci < 100) & (cci.shift(1) >= 100)      # Crosses below 100
-            ]
-            choices = ['call', 'put']
-            cci_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('CCI', cci_signal)
-        return
+            CCI = self.df['CCI']
+            # Signal conditions
+            cci_cross_above_neg100 = (CCI > -100) & (CCI.shift(1) <= -100)
+            cci_cross_below_pos100 = (CCI < 100) & (CCI.shift(1) >= 100)
+            
+            cci_in_range = (CCI < 200) & (CCI > -200)  # Avoid extreme readings
+            
+            # Generate signals
+            signals = numpy.select(
+                condlist=[
+                    (cci_cross_above_neg100 & cci_in_range & self.price_above_ema & self.volume_spike),
+                    (cci_cross_below_pos100 & cci_in_range & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],  # 1=Call, -1=Put
+                default=0
+            )
+            return {'CCI': signals}
 
     def CMO(self):
         # 8. CMO (Chande Momentum Oscillator)
         if 'CMO' in self.df.columns:
-            cmo = self.df['CMO']
-            conditions = [
-                (cmo > -50) & (cmo.shift(1) <= -50),  # Crosses above -50
-                (cmo < 50) & (cmo.shift(1) >= 50)      # Crosses below 50
+            CMO = self.df['CMO']
+            # Call conditions
+            call_cmo_cross = (CMO.shift(1) < -60) & (CMO > -60)
+            # Put conditions
+            put_cmo_cross = (CMO.shift(1) > 60) & (CMO < 60)
+            # Generate signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (call_cmo_cross & self.price_above_ema & self.volume_spike),
+                    (put_cmo_cross & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],  # 1=Call, -1=Put
+                default=0  # 0 means no signal
+            )
+            return {'CMO': signals}
+
+    def MOM(self):
+        # 39. MOM (Momentum)
+        dic = {}
+        for x in ['MOM', 'PPO', 'TRIX', 'DEMA', 'EMA', 'TEMA', 'T3', 'KAMA', 'MA', 'TRIMA', 'MIDPOINT', 'MIDPRICE', 'TYPPRICE', 'WCLPRICE', 'WMA', 'AVGPRICE']:
+            if x in self.df.columns:
+                MOM = self.df[x]
+                signal_line = talib.EMA(MOM, timeperiod=11)
+                MOM_hist = MOM - signal_line
+                # Define crossover logic using .shift(1)
+                momentum_cross_above = (MOM > signal_line) & (MOM.shift(1) <= signal_line.shift(1))
+                momentum_cross_below = (MOM < signal_line) & (MOM.shift(1) >= signal_line.shift(1))
+                # --- Histogram Flip ---
+                hist_flip_up = (MOM_hist > 0) & (MOM_hist.shift(1) <= 0)
+                hist_flip_down = (MOM_hist < 0) & (MOM_hist.shift(1) >= 0)
+                # --- PPO Position ---
+                MOM_positive = MOM > 0
+                MOM_negative = MOM < 0
+
+                # Final signal array using numpy.select
+                signals = numpy.select(
+                    condlist=[
+                        (momentum_cross_above & hist_flip_up & MOM_positive & self.price_above_ema & self.volume_spike),
+                        (momentum_cross_below & hist_flip_down & MOM_negative & self.price_below_ema & self.volume_spike)
+                    ],
+                    choicelist=[1, -1],
+                    default=0  # No signal
+                )
+                dic[x] = signals
+        return dic
+
+    def ADX(self):
+        # 2. ADX (Average Directional Index)
+        dic = {}
+        for x in ['ADX', 'ADXR']:
+            if all(col in self.df.columns for col in [x, 'PLUS_DI', 'MINUS_DI']):
+                adx = self.df[x]
+                plus_di = self.df['PLUS_DI']
+                minus_di = self.df['MINUS_DI']
+                adx_prev = adx.shift(1)
+                # --- Trend Conditions ---
+                adx_strong = adx > 25
+                adx_rising = adx > adx_prev
+                # --- Direction ---
+                uptrend = plus_di > minus_di
+                downtrend = minus_di > plus_di
+
+                bullish_crossover = (plus_di > minus_di) & (plus_di.shift(1) < minus_di.shift(1))
+                bearish_crossover = (minus_di > plus_di) & (minus_di.shift(1) < plus_di.shift(1))
+                bullish_fakeout = (plus_di > minus_di) & (plus_di.shift(1) < minus_di.shift(1)) & (adx < adx.shift(1))
+                bearish_fakeout = (minus_di > plus_di) & (minus_di.shift(1) < plus_di.shift(1)) & (adx < adx.shift(1))
+                bullish_divergence = (self.AVGPRICE > self.AVGPRICE.shift(1)) & (adx < adx.shift(1))
+                bearish_divergence = (self.AVGPRICE < self.AVGPRICE.shift(1)) & (adx < adx.shift(1))
+                bullish_pullback = (plus_di > minus_di) & (adx > 25) & (self.AVGPRICE < self.AVGPRICE.shift(1))
+                bearish_pullback = (minus_di > plus_di) & (adx > 25) & (self.AVGPRICE > self.AVGPRICE.shift(1))
+
+                call_conditions = [
+                    (adx_strong & adx_rising & uptrend & self.price_above_ema & self.volume_spike & bullish_crossover & bullish_divergence & bullish_pullback & bearish_fakeout),
+                    (adx_strong & adx_rising & uptrend & self.price_above_ema & self.volume_spike & bullish_crossover & bullish_divergence),
+                    (adx_strong & adx_rising & uptrend & self.price_above_ema & self.volume_spike)
+                ]
+
+                put_conditions = [
+                    (adx_strong & adx_rising & downtrend & self.price_below_ema & self.volume_spike & bearish_crossover & bearish_divergence & bearish_pullback & bullish_fakeout),
+                    (adx_strong & adx_rising & downtrend & self.price_below_ema & self.volume_spike & bearish_crossover & bearish_divergence),
+                    (adx_strong & adx_rising & downtrend & self.price_below_ema & self.volume_spike)
+                ]
+
+                signals = numpy.select(
+                    condlist=[
+                        numpy.logical_or.reduce(call_conditions),
+                        numpy.logical_or.reduce(put_conditions)
+                    ],
+                    choicelist=[1, -1],
+                    default=0
+                )
+                dic [x] = signals
+        return dic
+
+    def DX(self):
+        if all(col in self.df.columns for col in ['DX', 'PLUS_DM', 'MINUS_DM']):
+            DX = self.df['DX']
+            plus_dm = self.df['PLUS_DM']
+            minus_dm = self.df['MINUS_DM']
+            DX_prev = DX.shift(1)
+            # --- Trend Conditions ---
+            DX_strong = DX > 25
+            DX_rising = DX > DX_prev
+            # --- Direction ---
+            uptrend = plus_dm > minus_dm
+            downtrend = minus_dm > plus_dm
+            signals = numpy.select(
+                condlist=[
+                    (DX_strong & DX_rising & uptrend & self.price_above_ema & self.volume_spike),
+                    (DX_strong & DX_rising & downtrend & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'DX': signals}
+
+    def Stochastic(self):
+        # 51-56. Stochastic variants
+        dic = {}
+        for stoch_0, stoch_1 in [('STOCHF_0', 'STOCHF_1'), ('STOCHRSI_0', 'STOCHRSI_1'), ('STOCH_0', 'STOCH_1')]:
+            if all(col in self.df.columns for col in [stoch_0, stoch_1]):
+                _k = self.df[stoch_0]
+                _d = self.df[stoch_1]
+                # Previous values
+                _k_prev = _k.shift(1)
+                _d_prev = _d.shift(1)
+                # Crossovers
+                bullish_cross = (_k > _d) & (_k_prev <= _d_prev)
+                bearish_cross = (_k < _d) & (_k_prev >= _d_prev)
+                # Oversold/Overbought before the signal
+                was_oversold = _k_prev < 20
+                was_overbought = _k_prev > 80
+                # Confirmation that %D exits overbought/oversold zone
+                d_exits_oversold = _d_prev < 20
+                d_exits_overbought = _d_prev > 80
+                # K/D too close before crossover
+                min_kd_diff = 2  # points
+                cross_strength = abs(_k_prev - _d_prev) > min_kd_diff
+
+                signals = numpy.select(
+                    condlist=[
+                        (bullish_cross & was_oversold & self.price_above_ema & self.volume_spike & self.bullish_candle & d_exits_oversold & cross_strength),
+                        (bearish_cross & was_overbought & self.price_below_ema & self.volume_spike & self.bearish_candle & d_exits_overbought & cross_strength)
+                    ],
+                    choicelist=[1, -1],
+                    default=0
+                )
+                dic[stoch_0.rstrip("_0")] = signals
+        return dic
+
+    def ULTOSC(self):
+        # 68. ULTOSC (Ultimate Oscillator)
+        if 'ULTOSC' in self.df.columns:
+            ultosc = self.df['ULTOSC']
+            uo_prev = ultosc.shift(1)
+
+            # Crossover signals
+            uo_cross_above_30 = (ultosc > 30) & (uo_prev <= 30)
+            uo_cross_below_70 = (ultosc < 70) & (uo_prev >= 70)
+
+            # Price lower low & UO higher low
+            price_low_prev = self.Low.shift(1)
+            uo_higher_low = ultosc > uo_prev
+            price_lower_low = self.Low < price_low_prev
+            bullish_divergence = price_lower_low & uo_higher_low
+
+            # Price higher high & UO lower high
+            price_high_prev = self.High.shift(1)
+            uo_lower_high = ultosc < uo_prev
+            price_higher_high = self.High > price_high_prev
+            bearish_divergence = price_higher_high & uo_lower_high
+
+            call_conditions = [
+                (uo_cross_above_30 & self.price_above_ema & self.volume_spike & self.bullish_candle),
+                (bullish_divergence & self.price_above_ema & self.volume_spike),
+                (uo_cross_above_30 & self.price_above_ema & self.volume_spike)
             ]
-            choices = ['call', 'put']
-            cmo_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('CMO', cmo_signal)
-        return
+
+            put_conditions = [
+                (uo_cross_below_70 & self.price_below_ema & self.volume_spike & self.bearish_candle),
+                (bearish_divergence & self.price_below_ema & self.volume_spike),
+                (uo_cross_below_70 & self.price_below_ema & self.volume_spike)
+            ]
+
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'ULTOSC': signals}
+
+    def WILLR(self):
+        # 70. WILLR (Williams %R)
+        if 'WILLR' in self.df.columns:
+            willr = self.df['WILLR']
+            # Lagged Williams %R for crossover detection
+            wr_prev = willr.shift(1)
+
+            # Cross signals
+            wr_cross_above_neg80 = (willr > -80) & (wr_prev <= -80)
+            wr_cross_below_neg20 = (willr < -20) & (wr_prev >= -20)
+
+            # Price lower low & UO higher low
+            price_low_prev = self.Low.shift(1)
+            wi_higher_low = willr > wr_prev
+            price_lower_low = self.Low < price_low_prev
+            bullish_divergence = price_lower_low & wi_higher_low
+
+            # Price higher high & UO lower high
+            price_high_prev = self.High.shift(1)
+            wi_lower_high = willr < wr_prev
+            price_higher_high = self.High > price_high_prev
+            bearish_divergence = price_higher_high & wi_lower_high
+
+            call_conditions = [
+                (wr_cross_above_neg80 & self.price_above_ema & self.volume_spike & self.bullish_candle),
+                (bullish_divergence & self.price_above_ema & self.volume_spike),
+                (wr_cross_above_neg80 & self.price_above_ema & self.volume_spike)
+            ]
+
+            put_conditions = [
+                (wr_cross_below_neg20 & self.price_below_ema & self.volume_spike & self.bearish_candle),
+                (bearish_divergence & self.price_below_ema & self.volume_spike),
+                (wr_cross_below_neg20 & self.price_below_ema & self.volume_spike)
+            ]
+
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'WILLR': signals}
+
+    def MFI(self):
+        # 32. MFI (Money Flow Index)
+        if 'MFI' in self.df.columns:
+            MFI = self.df['MFI']
+            mfi_prev = MFI.shift(1)
+
+            # Cross detection
+            mfi_cross_above_20 = (MFI > 20) & (mfi_prev <= 20)
+            mfi_cross_below_80 = (MFI < 80) & (mfi_prev >= 80)
+            call_conditions = [
+                (mfi_cross_above_20 &  self.price_above_ema &  self.volume_spike),
+                ((MFI > 20) &  self.price_above_ema &  self.volume_spike)
+            ]
+
+            put_conditions = [
+                (mfi_cross_below_80 &  self.price_below_ema &  self.volume_spike),
+                ((MFI < 80) &  self.price_below_ema &  self.volume_spike)
+            ]
+
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'MFI': signals}
 
     def ADOSC(self):
         # 1. ADOSC (Accumulation/Distribution Oscillator)
         if 'ADOSC' in self.df.columns:
-            adosc = self.df['ADOSC']
-            conditions = [
-                (adosc > 0) & (adosc.shift(1) <= 0),  # Crosses above zero
-                (adosc < 0) & (adosc.shift(1) >= 0)    # Crosses below zero
-            ]
-            choices = ['call', 'put']
-            adosc_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('ADOSC', adosc_signal)
-        return
+            ADOSC = self.df['ADOSC']
+            ADOSC_prev = ADOSC.shift(1)
+            chaikin_cross_up = (ADOSC > 0) & (ADOSC_prev <= 0)
+            chaikin_cross_down = (ADOSC < 0) & (ADOSC_prev >= 0)
+            AVG_diver_up = (self.AVGPRICE < self.AVGPRICE.shift(periods=1)) & (ADOSC > ADOSC.shift(periods=1))
+            AVG_diver_dwn = (self.AVGPRICE > self.AVGPRICE.shift(periods=1)) & (ADOSC < ADOSC.shift(periods=1))
+            Bullish_Divergence = (self.Low < self.Low.shift(periods=1)) & (ADOSC > ADOSC.shift(periods=1))
+            Bearish_Divergence = (self.High > self.High.shift(periods=1)) & (ADOSC < ADOSC.shift(periods=1))
 
-    def ADX(self):
-        # 2. ADX (Average Directional Index)
-        if all(col in self.df.columns for col in ['ADX', 'PLUS_DI', 'MINUS_DI']):
-            adx = self.df['ADX']
-            plus_di = self.df['PLUS_DI']
-            minus_di = self.df['MINUS_DI']
-            conditions = [
-                (adx > 25) & (plus_di > minus_di),  # Strong bullish trend
-                (adx > 25) & (plus_di < minus_di),  # Strong bearish trend
-                (adx < 20)                          # Weak trend
+            call_conditions = [
+                (chaikin_cross_up & self.price_above_ema & self.volume_spike & AVG_diver_up & Bullish_Divergence),
+                (chaikin_cross_up & self.price_above_ema & self.volume_spike)
             ]
-            choices = ['call', 'put', numpy.nan]
-            adx_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('ADX', adx_signal)
-        return
+
+            put_conditions = [
+                (chaikin_cross_down & self.price_below_ema & self.volume_spike & AVG_diver_dwn & Bearish_Divergence),
+                (chaikin_cross_down & self.price_below_ema & self.volume_spike)
+            ]
+
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'ADOSC': signals}
+
+    def OBV(self):
+        # 41-43. OBV variants
+        if self.df is not None and all(col in self.df.columns for col in ['OBV', 'OBV_high', 'OBV_low']):
+            OBV = self.df['OBV']
+            OBV_high = self.df['OBV_high']
+            OBV_low = self.df['OBV_low']
+            crossover_low = (OBV.shift(1) < OBV_low.shift(1)) & (OBV > OBV_low.shift(1))
+            crossover_high = (OBV.shift(1) > OBV_high.shift(1)) & (OBV < OBV_high.shift(1))
+            Bullish_Confirmation = (self.AVGPRICE > self.AVGPRICE.shift(periods=1)) & (OBV > OBV.shift(periods=1))
+            Bearish_Confirmation = (self.AVGPRICE < self.AVGPRICE.shift(periods=1)) & (OBV < OBV.shift(periods=1))
+            Bullish_Divergence = (self.Low < self.Low.shift(periods=1)) & (OBV > OBV.shift(periods=1))
+            Bearish_Divergence = (self.High > self.High.shift(periods=1)) & (OBV < OBV.shift(periods=1))
+            Support = (OBV > OBV_high.shift(1))
+            Resistance = (OBV < OBV_low.shift(1))
+            
+            call_conditions = [
+                (crossover_low & self.price_above_ema & self.volume_spike & Support & Bullish_Confirmation & Bullish_Divergence),
+                (crossover_low & self.price_above_ema & self.volume_spike & Support),
+                (crossover_low & self.price_above_ema & self.volume_spike)
+            ]
+            put_conditions = [
+                (crossover_high & self.price_below_ema & self.volume_spike & Resistance & Bearish_Confirmation & Bearish_Divergence),
+                (crossover_high & self.price_below_ema & self.volume_spike & Resistance),
+                (crossover_high & self.price_below_ema & self.volume_spike)
+            ]
+
+            signals = numpy.select(
+                [
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'OBV': signals}
+
+    def HT_DCPERIOD(self):
+        # 93-98. Hilbert Transform indicators
+        if 'HT_DCPERIOD' in self.df.columns:
+            ht_dcperiod = self.df['HT_DCPERIOD']
+            # Rolling mean to detect upward slope
+            ht_slope = ht_dcperiod.diff()
+            Bullish = (ht_dcperiod > ht_dcperiod.shift(1))
+            Bearish = (ht_dcperiod < ht_dcperiod.shift(1))
+            Cycle_Shift_Buy = ((ht_dcperiod - ht_dcperiod.shift(1)) > 3)
+            Cycle_Shift_Sell = ((ht_dcperiod.shift(1) - ht_dcperiod) > 3)
+
+            # Bullish condition
+            call_conditions = [
+                ((ht_slope > 0) & Bullish & Cycle_Shift_Buy & self.price_above_ema & self.volume_spike),
+                ((ht_slope > 0) & self.price_above_ema & self.volume_spike)
+            ]
+            # Bearish condition
+            put_conditions = [
+                ((ht_slope > 0) & Bearish & Cycle_Shift_Sell & self.price_below_ema & self.volume_spike),
+                ((ht_slope > 0) & self.price_below_ema & self.volume_spike)
+            ]
+            # Generate signal
+            signals = numpy.select(
+                [
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                [1, -1],
+                default=0
+            )
+            return {'HT_DCPERIOD': signals}
+
+    def HT_DCPHASE(self):
+        if 'HT_DCPHASE' in self.df.columns:
+            ht_dcphase = self.df['HT_DCPHASE']
+            # Crossover conditions: Detect crossing above and below zero
+            ht_cross_above_zero = (ht_dcphase > 0) & (ht_dcphase.shift(1) <= 0)  # Cross above zero (Call Signal)
+            ht_cross_below_zero = (ht_dcphase < 0) & (ht_dcphase.shift(1) >= 0)  # Cross below zero (Put Signal)
+            # Call (Buy) Conditions: HT_DCPHASE crosses above 0 (upward cycle)
+
+            call_conditions = [
+                (ht_cross_above_zero & self.price_above_ema & self.volume_spike),
+                ((ht_dcphase > 0) & self.price_above_ema & self.volume_spike)
+            ]
+            # Put (Sell) Conditions: HT_DCPHASE crosses below 0 (downward cycle)
+            put_conditions = [
+                (ht_cross_below_zero & self.price_below_ema & self.volume_spike),
+                ((ht_dcphase < 0) & self.price_below_ema & self.volume_spike)
+            ]
+            # Generate signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],  # 1=Call, -1=Put
+                default=0                    # No signal
+            )
+            return {'HT_DCPHASE': signals}
+
+    def HT_TRENDMODE(self):
+        if 'HT_TRENDMODE' in self.df.columns:
+            ht_trendmode = self.df['HT_TRENDMODE']
+            CMF = (2 * self.AVGPRICE - self.High - self.Low) / (self.High - self.Low) * self.Volume
+            CMF = CMF.rolling(11).sum() / self.Volume.rolling(11).sum()
+            # Generate signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    ((ht_trendmode > 0) & (CMF > 0) & self.price_above_ema & self.volume_spike),
+                    ((ht_trendmode < 0) & (CMF < 0) & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'HT_TRENDMODE': signals}
+
+    def HT_PHASOR(self):
+        if all(col in self.df.columns for col in ['HT_PHASOR_0', 'HT_PHASOR_1']):
+            inphase = self.df['HT_PHASOR_0']
+            quadrature = self.df['HT_PHASOR_1']
+            Cycle_Phase = numpy.degrees(numpy.arctan2(quadrature, inphase))
+            Phasor_Magnitude = numpy.sqrt(inphase**2 + quadrature**2)
+            phasor_threshold = numpy.nanpercentile(Phasor_Magnitude, 60)
+            # Calculate Cycle Turning Points
+            phase_diff = numpy.diff(Cycle_Phase, prepend=Cycle_Phase[0])
+            turning_up = (phase_diff > 0) & (Cycle_Phase < 180)       # Trough to rise
+            turning_down = (phase_diff < 0) & (Cycle_Phase > 180)     # Peak to fall
+            # Apply Magnitude Filter
+            phasor_strong = Phasor_Magnitude > phasor_threshold
+
+            Strength_up = (Phasor_Magnitude.shift(1) < Phasor_Magnitude)
+            Strength_dwn = (Phasor_Magnitude.shift(1) > Phasor_Magnitude)
+            Bullish_Reversal = (Cycle_Phase.shift(1) < 0) & (Cycle_Phase > 0)
+            Bearish_Reversal = (Cycle_Phase.shift(1) > 0) & (Cycle_Phase < 0)
+            Bullish_Divergence = (self.AVGPRICE < self.AVGPRICE.shift(1)) & (Cycle_Phase > Cycle_Phase.shift(1))
+            Bearish_Divergence = (self.AVGPRICE > self.AVGPRICE.shift(1)) & (Cycle_Phase < Cycle_Phase.shift(1))
+            Uptrend = (inphase.shift(1) > inphase) & (quadrature.shift(1) < quadrature)
+            Downtrend = (inphase.shift(1) < inphase) & (quadrature.shift(1) > quadrature)
+
+            # Define Entry Conditions
+            call_conditions = [
+                (turning_up & phasor_strong & Uptrend & Strength_up & Bullish_Reversal & Bullish_Divergence & self.price_above_ema & self.volume_spike),
+                (turning_up & phasor_strong & Uptrend & Strength_up & self.price_above_ema & self.volume_spike),
+                (turning_up & phasor_strong & Uptrend & self.price_above_ema & self.volume_spike)
+            ]
+            put_conditions = [
+                (turning_down & phasor_strong & Downtrend & Strength_dwn & Bearish_Reversal & Bearish_Divergence & self.price_below_ema & self.volume_spike),
+                (turning_down & phasor_strong & Downtrend & Strength_dwn & self.price_below_ema & self.volume_spike),
+                (turning_down & phasor_strong & Downtrend & self.price_below_ema & self.volume_spike)
+            ]
+
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'HT_PHASOR': signals}
+
+    def HT_SINE(self):
+        if all(col in self.df.columns for col in ['HT_SINE_0', 'HT_SINE_1']):
+            SINE = self.df['HT_SINE_0']
+            LEADSINE = self.df['HT_SINE_1']
+            # Detect Crossovers
+            sine_cross_above = (SINE > LEADSINE) & (numpy.roll(SINE <= LEADSINE, 1))
+            sine_cross_below = (SINE < LEADSINE) & (numpy.roll(SINE >= LEADSINE, 1))
+            non_comfirm = (abs(SINE - SINE.shift(1)) < 0.05) & (abs(LEADSINE - LEADSINE.shift(1)) < 0.05)
+
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (sine_cross_above & self.price_above_ema & self.volume_spike & ~non_comfirm),
+                    (sine_cross_below & self.price_below_ema & self.volume_spike & ~non_comfirm)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'HT_SINE': signals}
 
     def ATR(self):
         # 3. ATR (Average True Range)
-        if 'ATR' in self.df.columns:
-            atr = self.df['ATR']
-            # ATR is typically used as a filter rather than direct signals
-            threshold = atr.rolling(window=11).mean()
-            conditions = [
-                (atr > threshold * 1.5),  # High volatility
-                (atr < threshold * 0.5)    # Low volatility
-            ]
-            choices = ['call', 'put']  # Interpretation depends on other indicators
-            atr_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('ATR', atr_signal)
-        return
+        dic = {}
+        for x in ['ATR', 'NATR']:
+            if x in self.df.columns:
+                ATR = self.df[x]
+                atr_slope = ATR - ATR.shift(1)
+                atr_rising = atr_slope > 0
+                Bullish_Breakout = (self.AVGPRICE > self.AVGPRICE.shift(1) + (2 * ATR))
+                Bearish_Breakdwn = (self.AVGPRICE < self.AVGPRICE.shift(1) - (2 * ATR))
 
-    def RSI(self):
-        # 6. RSI (Relative Strength Index)
-        if 'RSI' in self.df.columns:
-            rsi = self.df['RSI']
-            conditions = [
-                (rsi > 30) & (rsi.shift(1) <= 30),  # Crosses above 30
-                (rsi < 70) & (rsi.shift(1) >= 70)    # Crosses below 70
-            ]
-            choices = ['call', 'put']
-            rsi_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('RSI', rsi_signal)
-        return
+                # Entry conditions
+                call_conditions = [
+                    (Bullish_Breakout & self.price_above_ema & atr_rising & self.volume_spike),
+                    (self.price_above_ema & atr_rising & self.volume_spike)
+                ]
+                put_conditions = [
+                    (Bearish_Breakdwn & self.price_below_ema & atr_rising & self.volume_spike),
+                    (self.price_below_ema & atr_rising & self.volume_spike)
+                ]
+                # Generate Signals using numpy.select
+                signals = numpy.select(
+                    condlist=[
+                        numpy.logical_or.reduce(call_conditions),
+                        numpy.logical_or.reduce(put_conditions)
+                    ],
+                    choicelist=[1, -1],
+                    default=0
+                )
+                dic[x] = signals
+        return dic
 
-    def SAR(self):
-        # 9. Parabolic SAR (Stop and Reverse)
-        if 'SAR' in self.df.columns:
-            price = self.AVGPRICE
-            sar = self.df['SAR']
-            conditions = [
-                (price > sar) & (price.shift(1) <= sar.shift(1)),  # Dots below price
-                (price < sar) & (price.shift(1) >= sar.shift(1))   # Dots above price
+    def TRANGE(self):
+        # 61. TRANGE (True Range)
+        if 'TRANGE' in self.df.columns:
+            trange = self.df['TRANGE']
+            avg_tr = talib.EMA(trange, timeperiod=11)
+            # --- Conditions ---
+            tr_spike = trange > 2 * avg_tr
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (tr_spike & self.price_above_ema & self.volume_spike),
+                    (tr_spike & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'TRANGE': signals}
+
+    def Houlihan(self):
+        # 91. HPR (Highest Price Range)
+        if all(col in self.df.columns for col in ['HPR', 'HSI', 'HMA']):
+            HPR = self.df['HPR']
+            HMA = self.df['HMA']
+            HSI = self.df['HSI']
+            hpr_cross_up = (HPR > HMA) & (HPR.shift() <= HMA.shift())
+            hpr_cross_down = (HPR < HMA) & (HPR.shift() >= HMA.shift())
+            call_conditions = [
+                (hpr_cross_up & (HSI > 60) & self.price_above_ema & self.volume_spike),
+                ((HSI > 60) & self.price_above_ema & self.volume_spike)
             ]
-            choices = ['call', 'put']
-            sar_signal = numpy.select(conditions, choices, default=numpy.nan)
-            self._add_strategy('SAR', sar_signal)
-        return
+            put_conditions  = [
+                (hpr_cross_down & (HSI < 40) & self.price_below_ema & self.volume_spike),
+                ((HSI < 40) & self.price_below_ema & self.volume_spike)
+                ]
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'HPR': signals}
+
+    def MAD(self):
+        # 26-28. MAD variants
+        if all(col in self.df.columns for col in ['MAD', 'MAD_lower', 'MAD_upper']):
+            MAD = self.df['MAD']
+            MAD_upper = self.df['MAD_upper']
+            MAD_lower = self.df['MAD_lower']
+            call_conditions = [
+                ((MAD > MAD_lower) & self.price_above_ema & self.volume_spike)
+            ]
+            put_conditions = [
+                ((MAD < MAD_upper) & self.price_below_ema & self.volume_spike)
+            ]
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'MAD': signals}
+
+    def Alligator(self):
+        # 87-89. Gator indicators
+        if all(col in self.df.columns for col in ['Gator_JAW', 'Gator_TEETH', 'Gator_LIPS', 'Gator_UPPER', 'Gator_LOWER']):
+            jaw = self.df['Gator_JAW']
+            teeth = self.df['Gator_TEETH']
+            lips = self.df['Gator_LIPS']
+            Gator_UPPER = self.df['Gator_UPPER']
+            Gator_LOWER = self.df['Gator_LOWER']
+            # Calculate Gator Oscillator (Difference between components)
+            gator_oscillator = (teeth - jaw) + (lips - teeth)
+            # Define BUY (Call) Condition
+            call_conditions = [
+                ((lips > teeth) & (teeth > jaw) & (gator_oscillator > 0) & (Gator_UPPER > 0.1) & (Gator_LOWER > 0.1))
+            ]
+            # Define SELL (Put) Condition
+            put_conditions = [
+                ((lips < teeth) & (teeth < jaw) & (gator_oscillator < 0) & (Gator_UPPER > 0.1) & (Gator_LOWER > 0.1))
+            ]
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'Alligator': signals}
+
+    def ERI(self):
+        # 9. Bear Power
+        if all(col in self.df.columns for col in ['Bull_Power', 'Bear_Power']):
+            Bull_Power = self.df['Bull_Power']
+            Bear_Power = self.df['Bear_Power']
+
+            Bull_Strength = (Bull_Power > 0) & (Bull_Power > Bull_Power.shift(1))
+            Bear_Strength = (Bear_Power < 0) & (Bear_Power < Bear_Power.shift(1))
+
+            # Buy (Call) Condition
+            call_conditions = [
+                (Bull_Strength & (Bull_Power > 0) & (Bear_Power < 0) & (Bull_Power > Bear_Power)),
+                ((Bull_Power > 0) & (Bear_Power < 0) & (Bull_Power > Bear_Power))
+            ]
+            
+            # Sell (Put) Condition
+            put_conditions = [
+                (Bear_Strength & (Bear_Power > 0) & (Bull_Power < 0) & (Bear_Power > Bull_Power)),
+                ((Bear_Power > 0) & (Bull_Power < 0) & (Bear_Power > Bull_Power))
+            ]
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'ERI': signals}
+
+    def ACO(self):
+        # 5. AWO (Awesome Oscillator)
+        if all(col in self.df.columns for col in ['AWO', 'ACO']):
+            AWO = self.df['AWO']
+            ACO = self.df['ACO']
+            # AWO and ACO Signals
+            ao_up = (AWO > 0) & (AWO > AWO.shift(1))
+            ao_down = (AWO < 0) & (AWO < AWO.shift(1))
+            ac_up = (ACO > 0) & (ACO > ACO.shift(1)) & (ACO.shift(1) > ACO.shift(2))
+            ac_down = (ACO < 0) & (ACO < ACO.shift(1)) & (ACO.shift(1) < ACO.shift(2))
+            Bullish_Confirmation = (ACO > 0) & (AWO > 0)
+            Bearish_Confirmation = (ACO < 0) & (AWO < 0)
+            Bullish_Twin_Peaks = (AWO.shift(2) > AWO.shift(1)) & (AWO.shift(1) < AWO) & (AWO > 0)
+            Bearish_Twin_Peaks = (AWO.shift(2) < AWO.shift(1)) & (AWO.shift(1) > AWO) & (AWO < 0)
+            Bullish_Saucer = (AWO > 0) & (AWO.shift(2) > AWO.shift(1)) & (AWO.shift(1) < AWO)
+            Bearish_Saucer = (AWO < 0) & (AWO.shift(2) < AWO.shift(1)) & (AWO.shift(1) > AWO)
+            Bullish_Crossover = (AWO > 0) & (AWO.shift(1) < 0)
+            Bearish_Crossover = (AWO < 0) & (AWO.shift(1) > 0)
+
+            # Final Conditions
+            call_conditions = [
+                (Bullish_Saucer & Bullish_Crossover & Bullish_Twin_Peaks & Bullish_Confirmation & ao_up & ac_up & self.price_above_ema & self.volume_spike),
+                (Bullish_Crossover & Bullish_Twin_Peaks & Bullish_Confirmation & ao_up & ac_up & self.price_above_ema & self.volume_spike),
+                (Bullish_Twin_Peaks & Bullish_Confirmation & ao_up & ac_up & self.price_above_ema & self.volume_spike),
+                (Bullish_Confirmation & ao_up & ac_up & self.price_above_ema & self.volume_spike)
+            ]
+            put_conditions = [
+                (Bearish_Saucer & Bearish_Crossover & Bearish_Twin_Peaks & Bearish_Confirmation & ao_down & ac_down & self.price_below_ema & self.volume_spike),
+                (Bearish_Crossover & Bearish_Twin_Peaks & Bearish_Confirmation & ao_down & ac_down & self.price_below_ema & self.volume_spike),
+                (Bearish_Twin_Peaks & Bearish_Confirmation & ao_down & ac_down & self.price_below_ema & self.volume_spike),
+                (Bearish_Confirmation & ao_down & ac_down & self.price_below_ema & self.volume_spike)
+            ]
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    numpy.logical_or.reduce(call_conditions),
+                    numpy.logical_or.reduce(put_conditions)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'ACO': signals}
+
+    def Chaikin_Oscillator(self):
+        # 11-13. Chaikin Oscillator (CO, CO_Fast, CO_Slow)
+        if self.df is not None and all(col in self.df.columns for col in ['CO', 'CO_Fast', 'CO_Slow']):
+            CO = self.df['CO']
+            CO_Fast = self.df['CO_Fast']
+            CO_Slow = self.df['CO_Slow']
+            # Indicators
+            CO_above_zero = CO > 0
+            CO_below_zero = CO < 0
+            # Crossovers
+            co_crossover_up = (CO_Fast > CO_Slow) & (CO_Fast.shift(1) <= CO_Slow.shift(1))
+            co_crossover_down = (CO_Fast < CO_Slow) & (CO_Fast.shift(1) >= CO_Slow.shift(1))
+            # Strength confirmation
+            co_rising = CO > CO.shift(1)
+            co_falling = CO < CO.shift(1)
+            # logging.error(f'Chaikin_Oscillator {self.volume_spike}, {self.price_below_ema}.')
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (co_crossover_up & CO_above_zero & co_rising & self.price_above_ema & self.volume_spike),
+                    (co_crossover_down & CO_below_zero & co_falling & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'CO': signals}
+
+    def Historical_Volatility(self):
+        # 99. HV (Historical Volatility)
+        if 'HV' in self.df.columns:
+            HV = self.df['HV']
+            hv_rising = HV > HV.shift(1)
+            high_vol = HV > HV.median()
+            low_vol = HV < HV.quantile(0.3)  # No-trade zone
+            recent_high = self.AVGPRICE.rolling(window=20).max()
+            price_breakout_up = self.AVGPRICE > recent_high.shift(1)
+            recent_low = self.AVGPRICE.rolling(window=20).min()
+            price_breakout_down = self.AVGPRICE < recent_low.shift(1)
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (hv_rising & high_vol & price_breakout_up & (self.RSI_c > 50) & ~low_vol),
+                    (hv_rising & high_vol & price_breakout_down & (self.RSI_c < 50) & ~low_vol)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'HV': signals}
+
+    def Coppock_Curve(self):
+        # 15-16. Coppock Curve and Coppock Raw
+        if all(col in self.df.columns for col in ['Coppock_Curve', 'Coppock_Raw']):
+            Coppock_Curve = self.df['Coppock_Curve']
+            Coppock_Raw = self.df['Coppock_Raw']
+            coppock_Cu_cross_up = (Coppock_Curve > 0) & (Coppock_Curve.shift(1) < 0)
+            coppock_RA_cross_up = (Coppock_Raw > 0) & (Coppock_Raw.shift(1) < 0)
+            coppock_Cu_rising = Coppock_Curve > Coppock_Curve.shift(1)
+            coppock_Cu_cross_down = (Coppock_Curve < 0) & (Coppock_Curve.shift(1) > 0)
+            coppock_Ra_cross_down = (Coppock_Raw < 0) & (Coppock_Raw.shift(1) > 0)
+            coppock_Cu_falling = Coppock_Curve < Coppock_Curve.shift(1)
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (coppock_Cu_cross_up & coppock_RA_cross_up & coppock_Cu_rising & self.price_above_ema & self.volume_spike),
+                    (coppock_Cu_cross_down & coppock_Ra_cross_down & coppock_Cu_falling & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'Coppock_Curve': signals}
+
+    def TSI(self):
+        # 64-65. TSI
+        if all(col in self.df.columns for col in ['TSI', 'TSI_signal']):
+            TSI = self.df['TSI']
+            TSI_Signal = self.df['TSI_signal']
+            crosses_above = (TSI > TSI_Signal) & (TSI.shift(1) < TSI_Signal.shift(1))
+            crosses_below = (TSI < TSI_Signal) & (TSI.shift(1) > TSI_Signal.shift(1))
+
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (crosses_above & (TSI > 0) & self.price_above_ema & self.volume_spike & (TSI < -30) & (TSI > TSI.shift(1))),
+                    (crosses_below & (TSI < 0) & self.price_below_ema & self.volume_spike & (TSI > 30) & (TSI < TSI.shift(1)))
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'TSI': signals}
+
+    def WRSI(self):
+        # 72-75. WRSI variants
+        if all(col in self.df.columns for col in ['WRSI', 'WRSI_MA', 'WRSI_Overbought', 'WRSI_Oversold']):
+            WRSI = self.df['WRSI']
+            WRSI_MA = self.df['WRSI_MA']
+            WRSI_Overbought = self.df['WRSI_Overbought']
+            WRSI_Oversold = self.df['WRSI_Oversold']
+            wrsi_rising = WRSI > WRSI.shift(1)
+            wrsi_falling = WRSI < WRSI.shift(1)
+            WRSI_MA_up = WRSI > WRSI_MA
+            WRSI_MA_dwn = WRSI < WRSI_MA
+            crosses_above_OS = (WRSI > WRSI_Oversold) & (WRSI.shift(1) < WRSI_Oversold.shift(1))
+            crosses_below_OB = (WRSI < WRSI_Overbought) & (WRSI.shift(1) > WRSI_Overbought.shift(1))
+            wrsi_cross_above_30 = (WRSI > 30) & (WRSI.shift(1) <= 30)
+            wrsi_cross_below_70 = (WRSI < 70) & (WRSI.shift(1) >= 70)
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (wrsi_cross_above_30 & wrsi_rising & WRSI_MA_up & crosses_above_OS & self.price_above_ema & self.volume_spike),
+                    (wrsi_cross_below_70 & wrsi_falling & WRSI_MA_dwn & crosses_below_OB & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'WRSI': signals}
+
+    def KST(self):
+        # 101. KST (Know Sure Thing)
+        if all(col in self.df.columns for col in ['KST', 'KST_Signal']):
+            KST = self.df['KST']
+            KST_Signal = self.df['KST_Signal']
+            cross_above_signal = (KST > KST_Signal) & (KST.shift(1) < KST_Signal.shift(1))
+            cross_below_signal = (KST < KST_Signal) & (KST.shift(1) > KST_Signal.shift(1))
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (cross_above_signal & (KST > 0) & self.price_above_ema & self.volume_spike),
+                    (cross_below_signal & (KST < 0) & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'KST': signals}
+
+    def Ichimoku_Cloud(self):
+        # 14. Ichimoku Cloud (Chimoku)
+        if self.df is not None and all(col in self.df.columns for col in ['Tenkan', 'Kijun', 'Chikou', 'Senkou_A', 'Senkou_B', 'combined_senkou_Max', 'combined_senkou_Min']):
+            Tenkan = self.df['Tenkan']
+            Kijun = self.df['Kijun']
+            Chikou = self.df['Chikou']
+            Senkou_A = self.df['Senkou_A']
+            Senkou_B = self.df['Senkou_B']
+            combined_senkou_Max = self.df['combined_senkou_Max']
+            combined_senkou_Min = self.df['combined_senkou_Min']
+            price_above_cloud = self.AVGPRICE > combined_senkou_Max
+            price_below_cloud = self.AVGPRICE < combined_senkou_Min
+            bullish_crossover = (Tenkan > Kijun) & (Tenkan.shift(1) < Kijun.shift(1))
+            bearish_crossover = (Tenkan < Kijun) & (Tenkan.shift(1) > Kijun.shift(1))
+            lagging_bullish = Chikou > self.AVGPRICE.shift(11)
+            lagging_bearish = Chikou < self.AVGPRICE.shift(11)
+            cloud_bullish = Senkou_A > Senkou_B
+            cloud_bearish = Senkou_A < Senkou_B
+
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (price_above_cloud & bullish_crossover & lagging_bullish & cloud_bullish & self.price_above_ema & self.volume_spike),
+                    (price_below_cloud & bearish_crossover & lagging_bearish & cloud_bearish & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'Ichimoku': signals}
+
+    def Force_Index(self):
+        # 20-22. Force Index variants
+        dic = {}
+        for fi in ['Force_Index', 'Force_Index_MA', 'Force_Index_max_min']:
+            if fi in self.df.columns:
+                Force_Index = self.df[fi]
+                Force_Index_EMA = talib.EMA(Force_Index, timeperiod=11)
+                fi_positive = Force_Index > 0
+                fi_ema_rising = Force_Index_EMA > Force_Index_EMA.shift(1)
+                fi_negative = Force_Index < 0
+                fi_ema_falling = Force_Index_EMA < Force_Index_EMA.shift(1)
+
+                # Generate Signals using numpy.select
+                signals = numpy.select(
+                    condlist=[
+                        (fi_positive & fi_ema_rising & self.price_above_ema & self.volume_spike),
+                        (fi_negative & fi_ema_falling & self.price_below_ema & self.volume_spike)
+                    ],
+                    choicelist=[1, -1],
+                    default=0
+                )
+                dic[fi] = signals
+        return dic
+
+    def Rainbow_Oscillator(self):
+        if all(col in self.df.columns for col in ['rb', 'rbo', 'rb_slope']):
+            rbo = self.df['rbo']
+            rb = self.df['rb']
+            rb_slope = self.df['rb_slope']
+            rb_EMA = talib.EMA(rb, timeperiod=11)
+            rb_slope_positive = rb_slope > 0
+            rb_slope_negative = rb_slope < 0
+            rbo_cross_above_0 = (rbo > 0) & (rbo.shift(1) <= 0)
+            rbo_cross_below_0 = (rbo < 0) & (rbo.shift(1) >= 0)
+
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (rbo_cross_above_0 & rb_slope_positive & (rb > rb_EMA) & (rbo > 10)),
+                    (rbo_cross_below_0 & rb_slope_negative & (rb > rb_EMA) & (rbo < -10))
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'Rain': signals}
+
+    def ADL(self):
+        # 2. ADL (Accumulation/Distribution Line)
+        dic = {}
+        for x in ['ADL', 'AD']:
+            if x in self.df.columns:
+                AD = self.df[x]
+                # Calculate the slope of the A/D Line (rate of change)
+                AD_slope = AD.diff()
+                # Divergence check: Price makes lower low, A/D makes higher low
+                price_lower_low = self.AVGPRICE < self.AVGPRICE.shift(1)
+                AD_higher_low = AD > AD.shift(1)
+                # Divergence check: Price makes higher high, A/D makes lower high
+                price_higher_high = self.AVGPRICE > self.AVGPRICE.shift(1)
+                AD_lower_high = AD < AD.shift(1)
+
+                # Generate Signals using numpy.select
+                signals = numpy.select(
+                    condlist=[
+                        ((AD_slope > 0) & price_lower_low & AD_higher_low & self.volume_spike & self.price_above_ema),
+                        ((AD_slope < 0) & price_higher_high & AD_lower_high & self.volume_spike & self.price_below_ema)
+                    ],
+                    choicelist=[1, -1],
+                    default=0
+                )
+                dic[x] = signals
+        return dic
+
+    def MAMA(self):
+        # 29-31. MAMA variants
+        if all(col in self.df.columns for col in ['MAMA_0', 'MAMA_1']):
+            MAMA = self.df['MAMA_0']
+            FAMA = self.df['MAMA_1']
+            mama_above_fama = MAMA > FAMA
+            mama_below_fama = MAMA < FAMA
+            crossover = ((self.AVGPRICE > MAMA) & (self.AVGPRICE > FAMA))
+            crossbelow = ((self.AVGPRICE < MAMA) & (self.AVGPRICE < FAMA))
+
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (mama_above_fama & crossover & self.volume_spike & self.price_below_ema),
+                    (mama_below_fama & crossbelow & self.volume_spike & self.price_below_ema)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'MAMA': signals}
+
+    def ROCP(self):
+        # 47-49. ROC variants
+        if all(col in self.df.columns for col in ['ROC', 'ROCP', 'ROCR100']):
+            ROC = self.df['ROC']
+            ROCP = self.df['ROCP']
+            ROCR100 = self.df['ROCR100']
+            roc_positive = ROC > 0  # Positive momentum (ROC > 0)
+            roc_negative = ROC < 0  # Negative momentum (ROC < 0)
+            rocp_positive = ROCP > 0  # Positive percentage change (ROCP > 0)
+            rocp_negative = ROCP < 0  # Negative percentage change (ROCP < 0)
+            rocr100_positive = ROCR100 > 1  # Price has increased by more than 1% (ROCR100 > 1)
+            rocr100_negative = ROCR100 < 1  # Price has decreased by more than 1% (ROCR100 < 1)
+
+            # Generate Signals using numpy.select
+            signals = numpy.select(
+                condlist=[
+                    (roc_positive & rocp_positive & rocr100_positive & self.price_above_ema & self.volume_spike),
+                    (roc_negative & rocp_negative & rocr100_negative & self.price_below_ema & self.volume_spike)
+                ],
+                choicelist=[1, -1],
+                default=0
+            )
+            return {'ROC': signals}

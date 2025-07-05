@@ -1,7 +1,22 @@
 from MH_libraries import IQ_Option, logging, gc, time
 from MH_savings import TradeData
-from MH_config import HEADERS, INSTRUMENTS
 
+INSTRUMENTS = 'turbo'  # Options: 'turbo' or 'binary'
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+    "Accept-Language": "en-US,en;q=0.9,ar;q=0.8",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "content-type": "application/json",
+    "Referer": "https://iqoption.com/",
+    "Origin": "https://iqoption.com",
+    "priority": "u=1, i",
+    "Connection": "keep-alive",
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "cross-site",
+    "sec-fetch-storage-access": "active"
+}
 
 class Money_Heist:
     """Class to handle IQ Option API interactions.
@@ -32,18 +47,9 @@ class Money_Heist:
         self.last_connection_time = None
         self._initialized = True
         
-        self.connect()
+        # self.connect()
 
-    def connect(self):
-        """Connect to the IQ Option API with session refresh."""
-        if self.last_connection_time is None or time.time() - self.last_connection_time > 1800:
-            logging.info("Session expired. Reconnecting...")
-            logging.info(f"API_connected {self.trade_data.get_API_connected().is_set()}.")
-            return self._attempt_connection()
-        elif not self.trade_data.get_API_connected().is_set():
-            return self._attempt_connection()
-
-    def _attempt_connection(self) -> bool:
+    def connect(self) -> bool:
         """
         Connect to the IQ Option API.
         
@@ -254,6 +260,26 @@ class Money_Heist:
         except Exception as e:
             self.trade_data.API_connection(0)
             logging.error(f"Failed to fetch actives names: {e}")
+            return {}  # Return an empty dictionary on failure
+
+    def get_all_profit(self):
+        """
+        Retrieve All ACTIVES profit.
+        
+        Returns:
+            dict: A dictionary containing All ACTIVES profit.
+        """
+        try:
+            logging.info("Fetching actives profit.")
+            all_profit = self.money_heist.get_all_profit()
+            gc.collect()  # Force garbage collection
+            return all_profit
+        except ConnectionError as e:
+            self.trade_data.API_connection(0)
+            logging.error(f"Connection error: {e}")
+        except Exception as e:
+            self.trade_data.API_connection(0)
+            logging.error(f"Failed to fetch actives profit : {e}")
             return {}  # Return an empty dictionary on failure
 
     def get_candles(self, asset, interval, count, timestamp):
