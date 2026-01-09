@@ -1,0 +1,30 @@
+# Liquidity Shock and Spread Events
+
+## Mini-Index
+- 1.0 Purpose
+- 1.1 Inputs / Dependencies
+- 1.2 Rules (MUST/SHOULD/MAY)
+- 1.3 Edge Cases / Conflicts
+- 1.4 Examples (minimal, conceptual)
+- 1.5 Open Questions
+
+1.0 Purpose
+- Describe how to respond to liquidity shocks and spread events in micro trading.
+
+1.1 Inputs / Dependencies
+- Observed spread/liq metrics; confirmations; edge; health/readiness.
+
+1.2 Rules (MUST/SHOULD/MAY)
+- MUST treat shock/dislocation events as stand-down triggers: block entries; exits allowed.
+- SHOULD tighten confirmations and frequency after shock until stability window passes.
+- SHOULD integrate with Unknown-Mode when shocks create ambiguity.
+- MAY define thresholds via Adaptive Parameters Policy; defaults should be strict if undefined.
+
+1.3 Edge Cases / Conflicts
+- Shock detected mid-trade ? reduce/exit based on risk; do not add.
+
+1.4 Examples (minimal, conceptual)
+- Sudden spread widening beyond tolerance ? block entries, manage exits until spreads normalize for defined window.
+
+1.5 Open Questions
+- [INBOX-REVIEW] Specific spread/liquidity thresholds and recovery windows.
