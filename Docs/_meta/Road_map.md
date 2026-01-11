@@ -3,27 +3,11 @@
 _Auto-generated from git ls-files "*.md" on 
 
 ## Docs
-- Docs/Aegis_API_bot.md
-- Docs/Aegis_Heist_Binance.md
-- Docs/Aegis_heist_TCM.md
-- Docs/Aegis_test.md
 - Docs/Aegis_Trade_micro.md
 - Docs/Heist_strategy_doc.md
-- Docs/TCM_Builder_Checklist.md
-- Docs/WS_Depth_Toolkit.md
 
 ## Docs/_meta
 - Docs/_meta/Rules.md
-
-## Docs/logic
-- Docs/logic/Chat_Logic.md
-- Docs/logic/Control_Logic.md
-- Docs/logic/Health_Logic.md
-- Docs/logic/Heavy_Tasks_Logic.md
-- Docs/logic/Software_Flow_Logic.md
-- Docs/logic/Software_Logic.md
-- Docs/logic/Storage_Logic.md
-- Docs/logic/Trading_Strategy_Logic.md
 
 ## Docs/Micro_Heist_Tree
 - Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md
@@ -97,13 +81,7 @@ _Auto-generated from git ls-files "*.md" on
 
 ## Docs/rules
 - Docs/rules/AI_Rules.md
-- Docs/rules/Coding_Rules.md
 - Docs/rules/Control_Rules.md
 - Docs/rules/Documentation_Rules.md
-- Docs/rules/Health_Rules.md
-- Docs/rules/Heavy_Tasks_Rules.md
-- Docs/rules/Software_Rules.md
-- Docs/rules/Storage_Rules.md
-- Docs/rules/Testing_Rules.md
 - Docs/rules/Trading_Strategy_Rules.md
 
