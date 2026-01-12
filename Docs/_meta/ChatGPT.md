@@ -34,10 +34,10 @@ META POLICY (SINGLE FILE) (CRITICAL)
 - Meta generation MUST update ONLY: Docs/_meta/Road_map.md
 - Road_map.md MUST contain each tracked *.md file path AND its RAW(main) URL under it.
 - Road_map.md MUST ALSO include itself (so its own RAW link exists in the map).
-- Do NOT generate Docs/_meta/RAW_Links.md or Docs/_meta/Road_map_Links.md (deprecated / removed).
+- Do NOT generate Docs/_meta/Road_map.md or Docs/_meta/Road_map.md (deprecated / removed).
 
 RAW URL PATTERN (REFERENCE)
-- RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATHREL_PATH
+- RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATHREL_PATHREL_PATH
 
 READ vs WRITE (CRITICAL)
 - READING (viewing current content):
@@ -136,6 +136,11 @@ ROAD_map GENERATION (MANDATORY)
 - INCLUDE Docs/_meta/Road_map.md itself
 - For EACH file path (REL_PATH):
 - "- REL_PATH"
-- "  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATHREL_PATH"
+- "  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATHREL_PATHREL_PATH"
 - IMPORTANT: Write Road_map.md using UTF-8 NO-BOM and LF newlines.
 - MUST write using ABSOLUTE path: Join-Path $RepoRoot "Docs/_meta/Road_map.md"
+
+WRITING (CRITICAL)
+- Do NOT use git apply.
+- Do NOT create patch files/folders and do NOT use any repo folder named patches/.
+- Apply changes by directly writing final file content (here-strings) to target paths.
