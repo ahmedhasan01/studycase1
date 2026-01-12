@@ -1,5 +1,5 @@
-﻿# Road map (auto-generated)
-# Includes RAW(main) link under each file
+# Road map (auto-generated)
+# Each file path includes its RAW(main) link
 
 ## Docs
 - Docs/Aegis_Trade_micro.md
@@ -10,6 +10,8 @@
 ## Docs/_meta
 - Docs/_meta/ChatGPT.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/_meta/ChatGPT.md
+- Docs/_meta/Road_map.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/_meta/Road_map.md
 - Docs/_meta/Rules.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/_meta/Rules.md
 
@@ -138,5 +140,4 @@
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/Documentation_Rules.md
 - Docs/rules/Trading_Strategy_Rules.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/Trading_Strategy_Rules.md
-
 
