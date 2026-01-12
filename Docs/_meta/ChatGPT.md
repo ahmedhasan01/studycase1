@@ -16,10 +16,10 @@ NO-BRANCHES POLICY (CRITICAL)
 - Do NOT create or use any new git branches.
 - All commits MUST be made directly on the default branch.
 - PowerShell MUST always:
-  - detect BASE_BRANCH from origin/HEAD (fallback: main)
-  - git checkout BASE_BRANCH
-  - git pull --ff-only origin BASE_BRANCH
-  - git push origin BASE_BRANCH
+- detect BASE_BRANCH from origin/HEAD (fallback: main)
+- git checkout BASE_BRANCH
+- git pull --ff-only origin BASE_BRANCH
+- git push origin BASE_BRANCH BASE_BRANCH
 
 CANONICAL FILES (SOURCE OF TRUTH)
 - Formatting rules: Docs/_meta/Rules.md
@@ -37,7 +37,7 @@ META POLICY (SINGLE FILE) (CRITICAL)
 - Do NOT generate Docs/_meta/RAW_Links.md or Docs/_meta/Road_map_Links.md (deprecated / removed).
 
 RAW URL PATTERN (REFERENCE)
-- RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATH
+- RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATHREL_PATH
 
 READ vs WRITE (CRITICAL)
 - READING (viewing current content):
@@ -45,14 +45,14 @@ READ vs WRITE (CRITICAL)
   2) Pick the target file by REL_PATH and open its RAW(main) URL printed under it.
   3) If a URL cannot be opened due to tooling: use Search->Open fallback (repo-scoped), OR request local fallback output (below).
 - WRITING (modifying files):
-  - Only happens in #RUN_PS mode via local PowerShell.
-  - Do NOT use git apply. Do NOT create patch files/folders.
-  - Apply changes by directly writing final file content to target paths.
+- Only happens in #RUN_PS mode via local PowerShell.
+- Do NOT use git apply. Do NOT create patch files/folders.
+- Apply changes by directly writing final file content to target paths.
 
 SEARCH-OPEN FALLBACK (WHEN TOOLING BLOCKS OPEN)
 - Repo-scoped search queries:
-  - site:github.com/ahmedhasan01/studycase1 "REL_PATH"
-  - site:github.com/ahmedhasan01/studycase1 "filename.md"
+- site:github.com/ahmedhasan01/studycase1 "REL_PATH"
+- site:github.com/ahmedhasan01/studycase1 "filename.md"
 - Open the file from the search-result link (blob link is acceptable).
 - If search is empty/blocked: request local fallback output (below).
 
@@ -60,7 +60,7 @@ LOCAL FALLBACK READ (WORKS EVEN IF GITHUB UI/SEARCH FAILS)
 - Ask the user to run locally and paste output:
   cd "E:\studycase1"
   git fetch origin main
-  git show origin/main:REL_PATH
+  git show origin/main:REL_PATHREL_PATH
 
 INSTRUCTION PRIORITY (CRITICAL)
 - Operating workflow = this Project Instructions text (this file).
@@ -80,8 +80,8 @@ KEYWORDS (CASE-INSENSITIVE)
 
 KEYWORD GATE (CRITICAL)
 - If the user message DOES NOT contain #RUN_PS and DOES NOT contain #BOOTSTRAP and DOES NOT contain #META_PS:
-  - Discussion/planning/review only.
-  - DO NOT output any PowerShell block.
+- Discussion/planning/review only.
+- DO NOT output any PowerShell block.
 
 POWERSHELL COPY/PASTE SAFETY (CRITICAL)
 - Never allow line breaks inside quoted strings.
@@ -100,18 +100,18 @@ When the user message contains #RUN_PS, output ONLY:
   4) Detect BASE_BRANCH from origin/HEAD; fallback "main"
   5) git checkout BASE_BRANCH ; git pull --ff-only origin BASE_BRANCH
   6) APPLY CHANGES (NO PATCH FILES / NO git apply)
-     - Do NOT create or use any repo folder named patches/
-     - Do NOT use git apply and do NOT generate *.patch files
-     - For each target file, write final content directly using here-strings
-     - MUST write using ABSOLUTE paths: Join-Path $RepoRoot REL_PATH
-     - MUST set .NET current directory: [Environment]::CurrentDirectory = $RepoRoot
-     - Print per file: "[OK] Wrote REL_PATH"
+- Do NOT create or use any repo folder named patches/
+- Do NOT use git apply and do NOT generate *.patch files
+- For each target file, write final content directly using here-strings
+- MUST write using ABSOLUTE paths: Join-Path $RepoRoot REL_PATH
+- MUST set .NET current directory: [Environment]::CurrentDirectory = $RepoRoot
+- Print per file: "[OK] Wrote REL_PATH"
   7) Regenerate meta (MANDATORY) after writing files:
-     - Docs/_meta/Road_map.md ONLY (single file; includes itself; includes RAW links)
+- Docs/_meta/Road_map.md ONLY (single file; includes itself; includes RAW links)
   8) Stop if no changes after write+meta refresh
-  9) git add -A ; git commit -m "..." ; git push origin BASE_BRANCH
+  9) git add -A ; git commit -m "..." ; git push origin BASE_BRANCH BASE_BRANCH
  10) After push:
-     - Copy Road_map RAW link to clipboard and print EXACTLY:
+- Copy Road_map RAW link to clipboard and print EXACTLY:
        Copied RAW link to clipboard.
  11) Print:
      git show --name-status --shortstat --oneline HEAD
@@ -131,11 +131,11 @@ When the user message contains #META_PS, output ONE PowerShell block ONLY that:
 
 ROAD_map GENERATION (MANDATORY)
 - Docs/_meta/Road_map.md:
-  - Auto-generate from: git ls-files "*.md"
-  - Group by directory
-  - INCLUDE Docs/_meta/Road_map.md itself
-  - For EACH file path (REL_PATH):
-    - "- REL_PATH"
-    - "  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATH"
-  - IMPORTANT: Write Road_map.md using UTF-8 NO-BOM and LF newlines.
-  - MUST write using ABSOLUTE path: Join-Path $RepoRoot "Docs/_meta/Road_map.md"
+- Auto-generate from: git ls-files "*.md"
+- Group by directory
+- INCLUDE Docs/_meta/Road_map.md itself
+- For EACH file path (REL_PATH):
+- "- REL_PATH"
+- "  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/REL_PATHREL_PATH"
+- IMPORTANT: Write Road_map.md using UTF-8 NO-BOM and LF newlines.
+- MUST write using ABSOLUTE path: Join-Path $RepoRoot "Docs/_meta/Road_map.md"
