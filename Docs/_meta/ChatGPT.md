@@ -99,23 +99,41 @@ KEYWORD GATE (CRITICAL)
         3) Abort if working tree is NOT clean before starting (git status --porcelain not empty)
         4) Detect base branch from origin/HEAD; fallback "main"
         5) git checkout <base> ; git pull --ff-only origin <base>
-        6) Save unified diff to /patches as UTF-8 (embed patch as here-string)
-        7) git apply --check then git apply --3way --whitespace=fix
-           - If apply fails: STOP and print clear error + hint:
-             `git apply --reject --whitespace=fix <patchfile>` manually (do not auto-run it)
-        8) Regenerate meta files (MANDATORY):
+
+        6) APPLY CHANGES (NO PATCH FILES / NO patches/ FOLDER)
+           - Do NOT create or use any repo folder named `patches/`.
+           - Do NOT use `git apply` and do NOT generate *.patch files.
+           - For each target file, write the final content directly using here-strings:
+             - Ensure parent directory exists (New-Item -ItemType Directory -Force).
+             - Use: Set-Content -Encoding utf8 <path>
+             - Print a clear progress line per file: "[OK] Wrote <path>"
+
+        7) Regenerate meta files (MANDATORY) after writing the files:
            - Docs/_meta/Road_map.md (paths-only)
            - Docs/_meta/Road_map_Links.md (paths + RAW(main) URLs)
            - Docs/_meta/RAW_Links.md (seed links)
-        9) Stop if no changes after apply+meta refresh (avoid empty commit)
-       10) git add -A ; git commit -m "<commit message>" ; git push origin <base>
-       11) Print Commit URL (PRIMARY) if origin is GitHub HTTPS and copy it to clipboard (Set-Clipboard)
+
+        8) Stop if no changes after write+meta refresh (avoid empty commit)
+
+        9) git add -A ; git commit -m "<commit message>" ; git push origin <base>
+
+       10) Print Commit URL (PRIMARY) if origin is GitHub HTTPS and copy it to clipboard (Set-Clipboard)
            - Also print RAW(main) URL for:
              - Docs/_meta/RAW_Links.md
              - Docs/_meta/Road_map_Links.md
-       12) If #COMPARE present: also print Compare URL (base...base) using the new commit SHA
-       13) Print small summary:
+
+       11) If #COMPARE present: also print Compare URL (base...base) using the new commit SHA
+
+       12) Print small summary:
            git show --name-status --shortstat --oneline HEAD
+
+       13) Prevent auto-closing (RECOMMENDED):
+           - Add at the end of the PowerShell block:
+             Read-Host "Done. Press Enter to close"
+           - And optionally:
+             $ErrorActionPreference = "Stop"
+             trap { Write-Host "`nERROR:`n$($_ | Out-String)" -ForegroundColor Red; Read-Host "Press Enter to close"; break }
+
 
 - If the user message contains #META_PS (meta refresh only):
   - Output ONE PowerShell block ONLY (no patch) that:
