@@ -1,4 +1,4 @@
-# Router Eligibility Policy -- CANONICAL (Micro 1-20m)
+﻿# Router Eligibility Policy -- CANONICAL (Micro 1-20m)
 
 ## Purpose
 - Deterministically map (Readiness/Health, Regime, Winning Bias, instrument capability, micro sanity) to:
@@ -38,20 +38,36 @@ If ANY condition fails -> `entry_policy=BLOCK` (entries blocked; exits allowed):
 - If other capability constraints exist -> restrict allowed families accordingly.
 
 ## Default Routing (conservative)
-- If `core_regime=CHAOTIC_AVOID` -> route_mode=AVOID, entry_policy=BLOCK, allowed_setup_families=[]
-- If `core_regime=UNKNOWN` -> route_mode=UNKNOWN, entry_policy=BLOCK (default), allowed_setup_families=[]
+- If `core_regime=CHAOTIC_AVOID` -> `route_mode=AVOID`, `entry_policy=BLOCK`, `allowed_setup_families=[]`
+- If `core_regime=UNKNOWN` -> `route_mode=UNKNOWN`, `entry_policy=BLOCK` (default), `allowed_setup_families=[]`
 
 Otherwise (eligible):
-- core_regime=TREND -> route_mode=TREND; allow TREND families only (trend continuation / pullback-into-trend) aligned with Winning Bias.
-- core_regime=RANGE -> route_mode=RANGE; allow RANGE families (range rotation / strict boundary rejection). Mean reversion allowed ONLY if explicitly defined and edge-positive > friction.
-- core_regime=BREAKOUT -> route_mode=BREAKOUT; allow breakout/momentum families (breakout + retest + go; compression breakout).
-- core_regime=MEAN_REV -> route_mode=MEAN_REV; allow mean-reversion families (VWAP/anchor fade, EMA mean fade, range extremes fade).
+
+- core_regime=TREND
+  - `route_mode=TREND`
+  - allow TREND families only (trend continuation / pullback-into-trend) aligned with Winning Bias.
+  - If routing begins to flip-flop or structure stops being orderly -> tighten to UNKNOWN/BLOCK.
+
+- core_regime=RANGE
+  - `route_mode=RANGE`
+  - allow RANGE families (range rotation / strict boundary rejection).
+  - If Chop/Noise dominates (low clarity / frequent false moves) -> tighten to UNKNOWN/BLOCK.
+
+- core_regime=BREAKOUT
+  - `route_mode=BREAKOUT`
+  - allow breakout/momentum families (breakout + retest + go; compression breakout).
+  - If the “break” is not holding (false breaks / instant reverts) -> tighten to UNKNOWN/BLOCK.
+
+- core_regime=MEAN_REV
+  - `route_mode=MEAN_REV`
+  - allow mean-reversion families (VWAP/anchor fade, EMA mean fade, range extremes fade).
+  - If a clear anchor/mean is not present -> tighten to RANGE or UNKNOWN (default stricter).
 
 ## Counter-bias / Counter-regime Rules (MUST)
 - No counter-bias entries by default.
 - No counter-regime entries by default:
-  - Example: do not run MEAN_REV inside TREND unless explicitly defined AND independently edge-positive AND does not violate invariants.
-- If bias is WEAK/NEUTRAL or bias_conflict_flag=TRUE -> tighten: THROTTLE/BLOCK entries (default stricter).
+  - Example: do not run MEAN_REV inside TREND unless explicitly defined AND independently edge-positive > friction AND does not violate invariants.
+- If bias is WEAK/NEUTRAL or `bias_conflict_flag=TRUE` -> tighten: THROTTLE/BLOCK entries (default stricter).
 
 ## Re-routing / Flip-flop Protection (SHOULD)
 - Prefer persistence/hysteresis: avoid frequent route changes.

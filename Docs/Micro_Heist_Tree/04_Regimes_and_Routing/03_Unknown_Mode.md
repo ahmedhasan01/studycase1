@@ -1,4 +1,4 @@
-# Unknown Mode -- CANONICAL (Tighten-only)
+﻿# Unknown Mode -- CANONICAL (Tighten-only)
 
 ## Purpose
 - Define how the system behaves when regime/bias/context is ambiguous or conflicting.
@@ -9,13 +9,20 @@
 - `regime_conflict_flag=TRUE`
 - Low regime confidence / ambiguous classification
 - Repeated regime or router flip-flops (unstable context)
-- Bias conflict (bias_conflict_flag=TRUE) that makes entries non-tradeable
+- Bias conflict (`bias_conflict_flag=TRUE`) that makes entries non-tradeable
 - Data quality or micro sanity degradation that invalidates decision inputs
+- Chop/Noise dominates (low clarity) and no stable routing is defensible
 
 ## Default Behavior (MUST)
 - Entries: BLOCK by default.
 - Exits/reductions: ALWAYS allowed.
 - Router: `route_mode=UNKNOWN` and `entry_policy=BLOCK` by default.
+
+## Escalation Rule (MUST)
+- If Unknown-Mode is triggered due to liquidity fragility / dislocation symptoms (even without a formal shock flag),
+  escalate to AVOID behavior:
+  - `route_mode=AVOID`, `entry_policy=BLOCK`
+  - exits/reductions allowed (reduce-first)
 
 ## Strict Throttle Exception (MAY, but only if explicitly documented)
 Unknown-Mode may allow strict THROTTLE ONLY when:
@@ -28,7 +35,7 @@ If the plan is missing -> [INBOX-REVIEW] and keep BLOCK default.
 
 ## Re-entry Conditions (tighten-only; no numeric thresholds)
 Return to normal routing ONLY when:
-- Conflicts clear (regime_conflict_flag=FALSE and bias_conflict_flag=FALSE),
+- Conflicts clear (`regime_conflict_flag=FALSE` and `bias_conflict_flag=FALSE`),
 - Data quality and micro sanity are healthy,
 - Regime/routing becomes stable for a persistence window (do not invent numbers here),
 - Shock/Dislocation is not active.

@@ -6,6 +6,8 @@
 
 ## Docs/_meta
 - Docs/_meta/ChatGPT.md
+- Docs/_meta/RAW_Links.md
+- Docs/_meta/Road_map_Links.md
 - Docs/_meta/Rules.md
 
 ## Docs/Micro_Heist_Tree
