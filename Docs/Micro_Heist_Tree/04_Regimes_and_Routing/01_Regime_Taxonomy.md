@@ -1,4 +1,4 @@
-﻿# Regime Taxonomy (Micro 1-20m) -- CANONICAL
+# Regime Taxonomy (Micro 1-20m) -- CANONICAL
 
 ## Purpose
 - Provide a deterministic per-symbol market-context label used to gate entries and select a setup menu.
@@ -6,7 +6,8 @@
 
 ## Output Contract (regime classifier)
 - MUST output:
-  - `core_regime in {TREND, RANGE, BREAKOUT, MEAN_REV, CHAOTIC_AVOID, UNKNOWN}`
+  - `core_regime in {TREND, RANGE, BREAKOUT, MEAN_REV, CHAOTIC_AVOID, UNKNOWN}
+- `overlay_regime in {TREND, RANGE, CHOP_NOISE, HIGH_VOL_EXPANSION, LOW_VOL_COMPRESSION, SHOCK_DISLOCATION}` (Overlay minimal taxonomy; mapping below; no numeric thresholds here)`
   - `regime_confidence` (monotone score; no new numeric thresholds here)
   - `regime_conflict_flag` (TRUE/FALSE)
 - Meaning:
@@ -86,3 +87,18 @@
 - Routing/eligibility is defined in:
   - `Docs/Micro_Heist_Tree/04_Regimes_and_Routing/02_Router_Eligibility_Policy.md`
   - `Docs/Micro_Heist_Tree/04_Regimes_and_Routing/03_Unknown_Mode.md`
+
+## Overlay Alignment (Minimal Regime Taxonomy)
+
+### overlay_regime (NON-BREAKING ADDITION; canonical minimal label set)
+- Purpose: Provide the overlay-required minimal regime taxonomy *without* changing the existing `core_regime` contract.
+- Contract: Always output BOTH: `core_regime` (existing) AND `overlay_regime` (minimal taxonomy).
+- Tighten-only rule: If you cannot defend a minimal label confidently, set `overlay_regime=CHOP_NOISE` and `core_regime=UNKNOWN`.
+
+#### Mapping (conceptual; no numeric thresholds)
+- `overlay_regime=SHOCK_DISLOCATION`   -> `core_regime=CHAOTIC_AVOID` (entries BLOCKED; exits/reductions allowed)
+- `overlay_regime=CHOP_NOISE`          -> `core_regime=UNKNOWN` (default tighten-only / Unknown-Mode)
+- `overlay_regime=LOW_VOL_COMPRESSION` -> `core_regime=UNKNOWN` or `RANGE` (default: tighten-only until a documented plan exists)
+- `overlay_regime=HIGH_VOL_EXPANSION`  -> `core_regime=BREAKOUT` or `TREND` (only when expansion holds with persistence; otherwise tighten)
+- `overlay_regime=RANGE`               -> `core_regime=RANGE`
+- `overlay_regime=TREND`               -> `core_regime=TREND`

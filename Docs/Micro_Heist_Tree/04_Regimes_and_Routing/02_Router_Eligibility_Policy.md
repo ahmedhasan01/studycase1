@@ -1,4 +1,4 @@
-﻿# Router Eligibility Policy -- CANONICAL (Micro 1-20m)
+# Router Eligibility Policy -- CANONICAL (Micro 1-20m)
 
 ## Purpose
 - Deterministically map (Readiness/Health, Regime, Winning Bias, instrument capability, micro sanity) to:
@@ -37,6 +37,12 @@ If ANY condition fails -> `entry_policy=BLOCK` (entries blocked; exits allowed):
 - If shorting is disallowed -> router MUST NOT allow net-short entry families.
 - If other capability constraints exist -> restrict allowed families accordingly.
 
+## Overlay Regime Tightening (MUST; non-breaking adapter)
+- `overlay_regime` is a *tighten-only veto/adapter* on top of `core_regime` and does not replace it.
+- If `overlay_regime=SHOCK_DISLOCATION` -> MUST set `route_mode=AVOID` and `entry_policy=BLOCK` (entries blocked; exits/reductions allowed).
+- If `overlay_regime=CHOP_NOISE` -> MUST set `route_mode=UNKNOWN` and `entry_policy=BLOCK` (default tighten-only).
+- If `overlay_regime=LOW_VOL_COMPRESSION` -> default `route_mode=UNKNOWN` and `entry_policy=BLOCK`; MAY move to THROTTLE only with an explicit documented compression plan; never loosen gates.
+- If `overlay_regime=HIGH_VOL_EXPANSION` -> MAY allow breakout/momentum families ONLY when consistent with `core_regime` AND confirmations/edge-positive gates pass; otherwise tighten to UNKNOWN/BLOCK.
 ## Default Routing (conservative)
 - If `core_regime=CHAOTIC_AVOID` -> `route_mode=AVOID`, `entry_policy=BLOCK`, `allowed_setup_families=[]`
 - If `core_regime=UNKNOWN` -> `route_mode=UNKNOWN`, `entry_policy=BLOCK` (default), `allowed_setup_families=[]`
