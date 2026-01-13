@@ -1,7 +1,7 @@
-# Road_map
+﻿# Road_map
 
 Auto-generated from: git ls-files "*.md"
-Generated (UTC): 2026-01-13T12:11:04Z
+Generated (UTC): 2026-01-13T13:27:18Z
 
 ## Docs
 - Docs/Aegis_Trade_micro.md
@@ -137,12 +137,3 @@ Generated (UTC): 2026-01-13T12:11:04Z
 - Docs/rules/Trading_Strategy_Rules.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/Trading_Strategy_Rules.md
 
-- Docs/rules/AI_Rules.md
-  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/AI_Rules.md
-- Docs/rules/Trading_Strategy_Rules.md
-  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/Trading_Strategy_Rules.md
-
-- Docs/rules/AI_Rules.md
-  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/AI_Rules.md
-- Docs/rules/Trading_Strategy_Rules.md
-  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/Trading_Strategy_Rules.md
