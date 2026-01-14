@@ -1,19 +1,18 @@
-# Road_map
+﻿# Road_map (Paths + RAW links)
 
-Auto-generated from: git ls-files "*.md"
-Generated (UTC): 2026-01-13T13:33:49Z
-
-## Docs
-- Docs/Aegis_Trade_micro.md
-  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Aegis_Trade_micro.md
-- Docs/Heist_strategy_doc.md
-  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Heist_strategy_doc.md
+Auto-generated. Source: git ls-files "*.md" (grouped by directory).
 
 ## Docs\_meta
 - Docs/_meta/ChatGPT.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/_meta/ChatGPT.md
 - Docs/_meta/Road_map.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/_meta/Road_map.md
+
+## Docs
+- Docs/Aegis_Trade_micro.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Aegis_Trade_micro.md
+- Docs/Heist_strategy_doc.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Heist_strategy_doc.md
 
 ## Docs\Micro_Heist_Tree
 - Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md
@@ -136,3 +135,4 @@ Generated (UTC): 2026-01-13T13:33:49Z
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/AI_Rules.md
 - Docs/rules/Trading_Strategy_Rules.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/Trading_Strategy_Rules.md
+
