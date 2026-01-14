@@ -1,4 +1,4 @@
-# Momentum Setups (Micro 1-20m) -- CANONICAL
+﻿# Momentum Setups (Micro 1-20m) -- CANONICAL
 
 ## Scope
 Applies when Router outputs:
@@ -123,3 +123,11 @@ Failure Modes
 ## Open Questions / [INBOX-REVIEW]
 - [INBOX-REVIEW] Define a single canonical "Unknown-Mode throttle plan" location if strict throttle is ever allowed.
 - [INBOX-REVIEW] If Router allows both TREND and BREAKOUT simultaneously, define a tie-break rule (default: choose stricter or the one with clearer confirmations and alignment).
+
+## References (resolves prior open questions)
+
+- **Unknown-mode strict throttle plan (canonical):**
+  - Docs/Micro_Heist_Tree/04_Regimes_and_Routing/03_Unknown_Mode.md -> "Canonical Unknown-Mode Strict Throttle Plan (if enabled)"
+- **TREND vs BREAKOUT tie-break (deterministic):**
+  - Docs/Micro_Heist_Tree/05_Setups/01_Setup_Menu.md -> "Tie-break: TREND vs BREAKOUT (when both appear eligible)"
+
