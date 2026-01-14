@@ -80,3 +80,13 @@ The Router selects ONE family from `allowed_setup_families`. If multiple are lis
 ## Open Questions / [INBOX-REVIEW]
 - [INBOX-REVIEW] If friction components are not explicitly decomposed for a setup, default stricter and avoid edge-positive ambiguity.
 - [INBOX-REVIEW] If router allows multiple families simultaneously, define a tie-break policy (default: choose stricter or the one aligned with strongest bias and clearest confirmations).
+
+## Tie-break: TREND vs BREAKOUT (when both appear eligible)
+
+Apply this ladder **in order**:
+
+1) **Route-mode wins.** If Router outputs a single oute_mode (TREND or BREAKOUT), pick that family (do not mix).
+2) If Router allows both families (ambiguity remains), choose **the clearer structure**:
+   - Choose **BREAKOUT** if a clean level exists and the breakout has a **confirmed retest hold** (MO-2 shape).
+   - Choose **TREND** if an orderly pullback exists and continuation structure confirms (MO-3 shape) without level-chop.
+3) If neither structure is clearly dominant -> default stricter: entry_policy=THROTTLE or BLOCK (prefer BLOCK if uncertainty remains).

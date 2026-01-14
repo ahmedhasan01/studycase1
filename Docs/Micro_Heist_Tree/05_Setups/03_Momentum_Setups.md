@@ -151,3 +151,10 @@ Failure Modes
   - Docs/Micro_Heist_Tree/04_Regimes_and_Routing/03_Unknown_Mode.md -> 'Canonical Unknown-Mode Strict Throttle Plan (if enabled)'
 - **TREND vs BREAKOUT tie-break (deterministic):**
   - Docs/Micro_Heist_Tree/05_Setups/01_Setup_Menu.md -> 'Tie-break: TREND vs BREAKOUT (when both appear eligible)'
+
+## References (resolves prior open questions)
+
+- **Unknown-mode strict throttle plan (canonical):**
+  - Docs/Micro_Heist_Tree/04_Regimes_and_Routing/03_Unknown_Mode.md -> 'Canonical Unknown-Mode Strict Throttle Plan (if enabled)'
+- **TREND vs BREAKOUT tie-break (deterministic):**
+  - Docs/Micro_Heist_Tree/05_Setups/01_Setup_Menu.md -> 'Tie-break: TREND vs BREAKOUT (when both appear eligible)'

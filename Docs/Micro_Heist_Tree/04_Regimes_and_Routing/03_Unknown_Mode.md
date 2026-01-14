@@ -1,4 +1,4 @@
-﻿# Unknown Mode -- CANONICAL (Tighten-only)
+# Unknown Mode -- CANONICAL (Tighten-only)
 
 ## Purpose
 - Define how the system behaves when regime/bias/context is ambiguous or conflicting.
@@ -48,3 +48,31 @@ Return to normal routing ONLY when:
 - Router policy: `Docs/Micro_Heist_Tree/04_Regimes_and_Routing/02_Router_Eligibility_Policy.md`
 - Regimes: `Docs/Micro_Heist_Tree/04_Regimes_and_Routing/01_Regime_Taxonomy.md`
 - Confirmations: `Docs/Micro_Heist_Tree/05_Setups/05_Confirmation_Gates.md`
+
+## Canonical Unknown-Mode Strict Throttle Plan (if enabled)
+
+**Default is still BLOCK.** THROTTLE is a **rare exception** and must never be used to 'find trades'.
+
+### Allowed pattern (only)
+- **MO-2: Breakout + Retest + Go** (only after a **confirmed hold**; no mid-retest guessing).
+
+### Gates (MUST all hold)
+- **Eligibility stays absolute**: Readiness/Health PASS, Data Quality OK, Micro Sanity PASS.
+- **No Shock/Dislocation**: any fragility symptoms -> escalate to AVOID/BLOCK.
+- **Bias alignment required**: if ias_conflict_flag=TRUE -> BLOCK.
+- **Readable structure**:
+  - One clean level (no multi-level chop).
+  - Retest hold is unambiguous (closed-bar + persistence).
+- **Confirmations are stricter than normal** (never looser):
+  - Closed-bar hold + persistence required.
+  - No 'early' entries inside the retest.
+- **Edge-positive remains required**: if edge vs friction is unclear -> BLOCK.
+
+### Frequency + failure handling (tighten-only)
+- THROTTLE means **fewer attempts** + **higher selectivity** (do not 'cycle' attempts).
+- After **any failed attempt**, enforce cooldown (no immediate re-attempt).
+- If repeated failures begin to appear -> revert Unknown-mode to **BLOCK** (no bargaining).
+- Exits are always allowed; management remains **reduce-first**.
+
+### Cooldown reference (MUST)
+- See: Docs/Micro_Heist_Tree/06_Risk_and_Frequency/04_Cooldowns_and_NoTrade.md
