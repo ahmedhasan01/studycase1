@@ -1,4 +1,5 @@
-﻿# Road_map (Paths + RAW links) Auto-generated. Source: git ls-files "*.md" (grouped by directory).
+﻿# Road_map (Paths + RAW links)
+Auto-generated. Source: git ls-files "*.md" (grouped by directory).
 
 ## Docs
 - Docs/Aegis_Trade_micro.md
@@ -133,5 +134,3 @@
  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/AI_Rules.md
 - Docs/rules/Trading_Strategy_Rules.md
  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/rules/Trading_Strategy_Rules.md
-
-

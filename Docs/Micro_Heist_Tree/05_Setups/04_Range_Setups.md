@@ -21,7 +21,6 @@ Tighten-only:
 - Edge-positive is clear and exceeds expected friction; if unclear -> BLOCK entries.
 - Confirmations (VALID trade) pass: CLOSED-BAR ONLY (M1+); persistence where relevant; micro hygiene OK (spread/tightness/quality within caps).
 - If confirmations disagree (one pass, one fail) -> treat as Unknown-Mode for THIS setup: default BLOCK/THROTTLE entries; exits allowed.
-- If confirmations disagree (one pass, one fail) -> treat as Unknown-Mode for THIS setup: default BLOCK/THROTTLE entries; exits allowed.
 - Management posture is reduce-first.
 
 Core range rule (MUST):
@@ -41,6 +40,7 @@ Setup Trigger (structure-first):
 
 Confirmations (MUST):
 - CLOSED-BAR ONLY (M1+). No live-candle confirmations.
+- If confirmations disagree (one pass, one fail) -> treat as Unknown-Mode for THIS setup: default BLOCK/THROTTLE entries; exits allowed.
 - Closed-bar rejection at boundary.
 - Persistence: boundary continues to hold after rejection.
 - Edge-positive remains positive after friction.
