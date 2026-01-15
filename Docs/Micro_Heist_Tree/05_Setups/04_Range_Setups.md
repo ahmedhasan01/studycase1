@@ -40,9 +40,16 @@ Setup Trigger (structure-first):
 - Boundary test + rejection structure forms at/near the extreme (not mid-range).
 
 Confirmations (MUST):
+- CLOSED-BAR ONLY (M1+). No live-candle confirmations.
 - Closed-bar rejection at boundary.
 - Persistence: boundary continues to hold after rejection.
 - Edge-positive remains positive after friction.
+- Closed-bar structure confirming rotation.
+- Persistence: rotation does not immediately fail.
+- Edge-positive remains positive; friction acceptable.
+- Closed-bar reclaim inside range.
+- Persistence: price holds inside range (not an immediate re-break).
+- Edge-positive remains positive; friction acceptable.
 
 Invalidation (MUST):
 - Boundary breaks and holds with persistence (range integrity failed).
@@ -68,11 +75,6 @@ Setup Trigger:
 - After rejection, rotation establishes direction with persistence (no immediate snapback).
 - Entry occurs after structure confirms rotation (avoid chasing the first impulse).
 
-Confirmations (MUST):
-- Closed-bar structure confirming rotation.
-- Persistence: rotation does not immediately fail.
-- Edge-positive remains positive; friction acceptable.
-
 Invalidation (MUST):
 - Rotation stalls into chop and loses edge-positive.
 - Boundary breaks in the wrong direction with persistence.
@@ -96,10 +98,6 @@ Prerequisites:
 Setup Trigger:
 - Re-entry into range + reclaim of boundary with persistence.
 
-Confirmations (MUST):
-- Closed-bar reclaim inside range.
-- Persistence: price holds inside range (not an immediate re-break).
-- Edge-positive remains positive; friction acceptable.
 
 Invalidation (MUST):
 - Breakout resumes and holds with persistence (failure thesis invalid).
