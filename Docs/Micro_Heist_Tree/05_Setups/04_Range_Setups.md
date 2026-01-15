@@ -19,7 +19,8 @@ Tighten-only:
   - If bias_conflict_flag=TRUE -> treat as not tradeable -> default BLOCK entries; exits allowed.
   - If flip_state=CONFIRMED -> reduce/exit current exposure FIRST before any new aligned exposure.
 - Edge-positive is clear and exceeds expected friction; if unclear -> BLOCK entries.
-- Confirmations (VALID trade) pass: closed bars + persistence where relevant; micro sanity OK.
+- Confirmations (VALID trade) pass: CLOSED-BAR ONLY (M1+); persistence where relevant; micro hygiene OK (spread/tightness/quality within caps).
+- If confirmations disagree (one pass, one fail) -> treat as Unknown-Mode for THIS setup: default BLOCK/THROTTLE entries; exits allowed.
 - Management posture is reduce-first.
 
 Core range rule (MUST):
