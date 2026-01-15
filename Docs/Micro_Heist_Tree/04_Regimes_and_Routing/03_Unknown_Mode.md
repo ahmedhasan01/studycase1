@@ -59,7 +59,7 @@ Return to normal routing ONLY when:
 ### Gates (MUST all hold)
 - **Eligibility stays absolute**: Readiness/Health PASS, Data Quality OK, Micro Sanity PASS.
 - **No Shock/Dislocation**: any fragility symptoms -> escalate to AVOID/BLOCK.
-- **Bias alignment required**: if ias_conflict_flag=TRUE -> BLOCK.
+- **Bias alignment required**: if ias_conflict_flag=TRUE -> BLOCK.
 - **Readable structure**:
   - One clean level (no multi-level chop).
   - Retest hold is unambiguous (closed-bar + persistence).
