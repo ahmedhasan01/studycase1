@@ -1,124 +1,80 @@
-﻿# AI Rules Overlay — Aegis Micro Heist
+﻿# AI Rules Overlay — Aegis Micro Heist (File-by-File Build Universe)
 
 ## 0.0 Purpose
-- Folder-scoped overlay to `AI_Rules.md` for `Docs/Micro_Heist_Tree/`.
-- Ensure a robust LIVE micro trading strategy universe (1–20m): deterministic, resilient, permissioning-first, non-overfit.
-- If conflict with Global rules, choose the stricter/safer interpretation; if unresolved, tag `[REVIEW-CONFLICT]` and default to entry-blocking/stricter gating; if info is missing, tag `[INBOX-REVIEW]`.
+- Folder-scoped overlay to `Docs/rules/AI_Rules.md` for `Docs/Micro_Heist_Tree/`.
+- Goal: every file must be immediately understandable and directly applicable as an operating module.
+- Default safety: under uncertainty or missing info → become stricter (BLOCK/THROTTLE entries); exits/reductions always allowed.
+- If unresolved conflict → tag `[REVIEW-CONFLICT]` and DO NOT guess.
+- If missing definitions/criteria → tag `[INBOX-REVIEW]` and default strict.
 
-- BOOK-FIRST navigation:
-  - Reader surface is `Docs/Book/*`.
-  - `Docs/Micro_Heist_Tree/*` remains the source pool during migration.
-
-## Run Modes — Comparison Pipelines
-- MODE 1 (LOCAL+AI_DB COMPARE):
-  - MUST consult `Aegis_Trade_micro.md`, `Heist_strategy_doc.md`, and AI Trusted DB.
-  - MUST produce a single Final Patch applied to target files (best result after comparing all inputs).
-  - MUST NOT show per-source patch notes in output.
-
-- MODE 2 (LOCAL+ONLINE+AI_DB COMPARE):
-  - MUST consult `Aegis_Trade_micro.md`, `Heist_strategy_doc.md`, Online trusted books, Online trusted sources, and AI Trusted DB.
-  - MUST produce a single Final Patch applied to target files (best result after comparing all inputs).
-  - MUST NOT show per-source patch notes in output.
-
-## 0.1 Scope
-- Applies ONLY to content under `Docs/Micro_Heist_Tree/` (and Book build guidance that references these rules).
+## 0.1 Run Modes (Comparison Pipelines)
+- MODE 1 (LOCAL + AI_DB):
+  - Consult local project docs + AI Trusted DB.
+  - Produce a single final patch (best result), no per-source patch notes in output.
+- MODE 2 (LOCAL + ONLINE + AI_DB):
+  - Consult local project docs + online trusted books/sources + AI Trusted DB.
+  - External is rationale-only; local canonical rules win.
+  - Produce a single final patch, no per-source patch notes in output.
 
 ## 1.0 Non-Negotiables (INVARIANTS)
-- MUST use Long/Short language only; no venue types/names.
-- MUST Reduce/Exit invariant: Long reduces/exits Short; Short reduces/exits Long.
-- MUST Reduce-first doctrine: if conditions change, reduce/exit first, then consider new exposure.
-- MUST Confirmed Winning Bias flip → MUST reduce/exit current exposure before any new aligned exposure.
-- MUST Robustness gating: if readiness/health/quality is degraded, block new entries; exits allowed.
-- MUST Unknown-Mode: if regime is unclear or conflict unresolved, entries blocked or heavily throttled; exits allowed.
-- MUST Minimal regime taxonomy: Trend, Range, Chop/Noise, High-Vol Expansion, Low-Vol Compression, Shock/Dislocation.
+- Long/Short only; no venue types/names.
+- Reduce/Exit invariant: Long reduces/exits Short; Short reduces/exits Long.
+- Reduce-first doctrine: reduce/exit first, then consider new exposure.
+- Confirmed Winning Bias flip → MUST reduce/exit current exposure before any new aligned exposure.
+- Robustness gating: if readiness/health/quality is degraded, block new entries; exits allowed.
+- Unknown-Mode: if regime is unclear or conflicts persist, entries blocked or heavily throttled; exits allowed.
+- Minimal regime taxonomy: Trend, Range, Chop/Noise, High-Vol Expansion, Low-Vol Compression, Shock/Dislocation.
 
-## 2.0 Adaptive vs Override (Governed Adaptivity)
-- Adaptive (allowed via policy ONLY):
-  - setup eligibility
-  - confirmation strictness
-  - frequency throttle
-  - edge-positive tolerance (still must be positive)
-  - tighten-only behavior under uncertainty
-- Forbidden-to-adapt:
-  - all invariants above
-  - risk hard stops / emergency actions
-  - precedence ladder
-  - “entries blocked / exits allowed” principle
-- Tighten-only default:
-  - under uncertainty/degradation, become stricter (throttle/block), never looser
-- Hysteresis:
-  - adaptive mode changes require confirmation/stability; if oscillating/ambiguous → Unknown-Mode
-
-## 3.0 Precedence Ladder
+## 2.0 Precedence Ladder (Always)
 1) Operational Robustness (health/readiness/shock) — may veto entries.
 2) Core Invariants (Section 1.0).
 3) Confirmed flip exit mandate.
 4) Winning Bias priority + bias strength tier behavior.
 5) Regime & Router eligibility policy.
-6) Confirmation gates (valid trade rules).
-7) Setup definitions (menu/families).
-8) Frequency fine-tuning (adaptive).
+6) Confirmation gates.
+7) Setup definitions.
+8) Frequency fine-tuning (adaptive, tighten-only).
 
-## 4.0 “VALID Trade” Definition (Micro)
-- VALID only if ALL:
-  - readiness/health gates pass
-  - edge-positive is clear
-  - setup eligible for regime/router
-  - confirmations pass
-  - risk/frequency/cooldown allow it
-- If unclear → default to stricter gating or `[INBOX-REVIEW]`.
+## 3.0 Canonical vs Advisory
+- Canonical rules live in ONE place only (single source of truth).
+- Advisory content (books/online) is rationale-only and must be labeled as such.
+- Do NOT introduce numeric thresholds unless already present locally.
+- If external conflicts with invariants/robustness gating → discard external.
 
-## 5.0 Playbook Rule (One Page)
-- `10_Playbook/01_Micro_Trade_Playbook.md` must stay one-page and follow:
-  - Ready → Winning Bias → Edge-positive → Setup → Confirm → Enter/Manage → Flip? Exit.
-- Playbook MUST NOT invent rules; every step MUST reference its authoritative module.
+## 4.0 Mandatory File Standard (Every `.md` module)
+Every file MUST start with the following header (INTEGRATE-only: add on top without rewriting existing content unless requested):
 
-## 6.0 External/Trusted Sources (Rationale only)
-- External/books/online are advisory only for rationale/definitions.
-- Verification order MUST NOT be swapped:
-  1) Online trusted books
-  2) Online trusted sources
-  3) AI Database
-  4) Project Docs
-  -> then compare to get the top answer related to the main project.
-- MUST NOT introduce numeric thresholds unless already present locally.
-- If external conflicts with invariants/robustness gates → discard external.
+### 4.1 Operating Header (required)
+- Mission:
+- Use when:
+- Hard constraints (cannot override):
+- Inputs / Dependencies (links):
+- Outputs / Decisions (PASS/BLOCK/THROTTLE/EXIT):
+- Failure modes (top 3):
+- Non-goals:
 
-## 7.0 Documentation Protocol (Local enforcement)
-- Use Shared/Common + deltas-only; prevent duplication.
-- Sections SHOULD be bullet-first; allow at most 1–2 context sentences per section.
-- If placement unclear → `[INBOX-REVIEW]` (default strict).
-- If unreconcilable conflict → `[REVIEW-CONFLICT]` and do NOT guess.
+### 4.2 Procedure (required)
+A checklist of exact steps to apply this module (5–12 steps):
+1) Preconditions (readiness/health, unknown-mode, etc.)
+2) Checks (what to inspect)
+3) Decision (PASS/BLOCK/THROTTLE)
+4) Action (enter/manage/exit)
+5) Abort conditions (when to stop / go Unknown-Mode)
+6) Post-action note (what to record)
 
-### 7.1 Book Standard (Mandatory)
-- `Docs/Book/*` is the reader cockpit.
-- Every Book file MUST start with a short Overview block:
-  - Mission (Purpose)
-  - Use when
-  - Hard constraints (what it cannot override)
-  - Inputs/Dependencies (links)
-  - Outputs/Decisions
-  - Failure modes
-  - Non-goals
-- Canonical vs Advisory:
-  - Canonical rules live in exactly ONE place.
-  - Advisory material (trusted sources) is rationale-only and must be clearly labeled.
-- No duplication:
-  - If a rule exists elsewhere canonically, Book files reference it; they do not copy it.
+### 4.3 Anti-duplication rule
+- If a definition exists canonically elsewhere, link it; do not copy it.
+- If linking would make the file unusable, include a short local “definition stub” and link to the canonical definition.
 
-### 7.2 Universe Style Guide (Reader immersion without fiction)
-- Tone: “operations manual” (cockpit language), not storytelling.
-- Each chapter must answer fast:
-  - What is the decision here?
-  - What blocks entries by default?
-  - What is always allowed (exits/reductions)?
-- Avoid hidden assumptions:
-  - If an assumption is required and unknown, tag `[INBOX-REVIEW]` and default strict.
+## 5.0 QA Gates (Before marking a file DONE)
+- Header present and accurate (Mission/Use/Constraints/Procedure).
+- Definitions consistent with glossary; no terminology drift.
+- No weakening of invariants or precedence ladder.
+- No new numeric thresholds unless already present locally.
+- Any uncertainty is tagged `[INBOX-REVIEW]` and defaults strict.
+- Any irreconcilable conflict is tagged `[REVIEW-CONFLICT]` and blocks entries by default.
 
-### 7.3 QA Gates (Before calling a chapter “ready”)
-- Definitions consistent with glossary (single meaning; no synonyms drift).
-- No new numbers/thresholds unless already present locally.
-- No rule weakens invariants or moves precedence ordering.
-- Every important claim is either:
-  - project-local canonical, or
-  - explicitly marked advisory.
+## 6.0 Batch Rules (How we work file-by-file)
+- Touch 1–4 files per patch.
+- Integrate only; avoid refactors unless explicitly requested.
+- Each completed file must be directly usable by a reader without needing hidden context.
