@@ -12,6 +12,26 @@
 - Docs/_meta/Road_map.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/_meta/Road_map.md
 
+## Docs\Book
+- Docs/Book/00_Overview.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/00_Overview.md
+- Docs/Book/01_Principles_and_Scope.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/01_Principles_and_Scope.md
+- Docs/Book/02_Market_Microstructure_Execution.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/02_Market_Microstructure_Execution.md
+- Docs/Book/03_Indicators_Signals.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/03_Indicators_Signals.md
+- Docs/Book/04_Entry_Exit_Logic.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/04_Entry_Exit_Logic.md
+- Docs/Book/05_Risk_Frequency_Friction.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/05_Risk_Frequency_Friction.md
+- Docs/Book/06_Readiness_Health_Gates.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/06_Readiness_Health_Gates.md
+- Docs/Book/07_Playbooks_Examples.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/07_Playbooks_Examples.md
+- Docs/Book/99_Appendix_Glossary_Matrix.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Book/99_Appendix_Glossary_Matrix.md
+
 ## Docs\Micro_Heist_Tree
 - Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md
@@ -21,8 +41,6 @@
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/00_MANIFEST_AEGIS_MICRO_HEIST.md
 - Docs/Micro_Heist_Tree/00_START_HERE_AEGIS_MICRO_HEIST.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/00_START_HERE_AEGIS_MICRO_HEIST.md
-- Docs/Micro_Heist_Tree/AI_Rules_Overlay.md
-  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/AI_Rules_Overlay.md
 
 ## Docs\Micro_Heist_Tree\01_Foundations
 - Docs/Micro_Heist_Tree/01_Foundations/01_Problem_Statement.md
