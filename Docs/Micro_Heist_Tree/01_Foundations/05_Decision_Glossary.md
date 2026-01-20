@@ -1,3 +1,5 @@
+﻿# Decision Glossary
+
 # CANONICAL START (Decision Glossary)
 - Ready/Readiness: health + data quality + operational readiness are OK; if not, entries blocked and exits allowed.
 - Winning Bias: current favored side (Long/Short). Bias strength tiers follow Bias System (Strong/Moderate/Weak/Neutral); if tiers are undefined -> [INBOX-REVIEW] and default stricter.
@@ -12,3 +14,4 @@
 - Regime-confidence: agreement/persistence measure for the current regime; low confidence or TF conflict => Unknown-Mode and tighten-only behavior.
 - Throttle: intentional reduction of frequency/size; applies when uncertainty, caps, or cooldowns demand tighter behavior.
 # CANONICAL END (Decision Glossary)
+
