@@ -32,9 +32,9 @@
 ### STEP-01 (P0 Foundations)
 Goal: Make the foundational documents directly usable and consistent.
 Files:
-- TODO `01_Foundations/03_Definitions_Glossary.md`
-- TODO `01_Foundations/04_Core_Invariants.md`
-- TODO `01_Foundations/05_Decision_Glossary.md`
+- DONE `01_Foundations/03_Definitions_Glossary.md`
+- DONE `01_Foundations/04_Core_Invariants.md`
+- DONE `01_Foundations/05_Decision_Glossary.md`
 Done criteria:
 - Operating Header + Procedure present
 - Definitions consistent (no drift)
@@ -151,3 +151,4 @@ If BREAKING:
 - Mark `[REVIEW-CONFLICT]`
 - Update Start Here
 - Update playbook references
+
