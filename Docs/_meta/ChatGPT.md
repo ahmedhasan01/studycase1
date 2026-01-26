@@ -220,6 +220,7 @@ The GitHub repo is PUBLIC and is the source of truth for reading current file co
 
 #meta
 
+- Any #RUN_PS script MUST start with the Clean Gate header (GitHub read + clean tree + auto-restore).
 ## Operating constraints (current)
 - GitHub RAW(main) is mandatory before any file edit/use.
 - External sources are rationale-only; local docs remain canonical.
@@ -244,3 +245,4 @@ The GitHub repo is PUBLIC and is the source of truth for reading current file co
   - Docs/Micro_Heist_Tree/09_Data/05_Data_Provenance_Licensing.md
 ## Step/Folder Clean Gate (mandatory)
 - Before any patch: read GitHub source (RAW or origin/main), ensure clean working tree (stash if needed), auto-restore drift, then edit + commit/push.
+
