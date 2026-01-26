@@ -41,3 +41,4 @@
 - **Throttle**: intentional reduction of frequency/size; applies when uncertainty, caps, or cooldowns demand tighter behavior.
 
 # CANONICAL END (Decision Glossary)
+

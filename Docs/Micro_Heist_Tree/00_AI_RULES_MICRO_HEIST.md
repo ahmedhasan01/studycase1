@@ -91,3 +91,11 @@ A checklist of exact steps to apply this module (5–12 steps):
 - Touch 1–4 files per patch.
 - Integrate only; avoid refactors unless explicitly requested.
 - Each completed file must be directly usable by a reader without needing hidden context.
+
+
+## 7.1 GitHub RAW Auto-restore (Mandatory)
+- If local content differs from GitHub RAW(main) for any target file, the patch MUST:
+  1) Download/read RAW(main),
+  2) Auto-restore the local file to match RAW(main),
+  3) Only then apply edits.
+- Never continue edits on a drifted local copy.
