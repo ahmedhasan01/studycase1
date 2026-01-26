@@ -18,6 +18,7 @@
 - No numeric thresholds unless already present locally; otherwise tag `[INBOX-REVIEW]`.
 - Under uncertainty: default strict (BLOCK/THROTTLE entries); exits allowed.
 - Never weaken invariants or precedence ladder.
+- External/online is rationale-only (when needed), never canon.
 
 ## 1.0 The Standard (must be applied to every module)
 - Canonical standard is defined in: `Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md`
@@ -31,9 +32,9 @@
 ### STEP-01 (P0 Foundations)
 Goal: Make the foundational documents directly usable and consistent.
 Files:
-- DONE `01_Foundations/03_Definitions_Glossary.md`
-- DONE `01_Foundations/04_Core_Invariants.md`
-- DONE `01_Foundations/05_Decision_Glossary.md`
+- TODO `01_Foundations/03_Definitions_Glossary.md`
+- TODO `01_Foundations/04_Core_Invariants.md`
+- TODO `01_Foundations/05_Decision_Glossary.md`
 Done criteria:
 - Operating Header + Procedure present
 - Definitions consistent (no drift)
@@ -98,6 +99,46 @@ Files:
 Done criteria:
 - Advisory labeling clear; no numeric thresholds added
 
+### STEP-09 (Trading Data Inputs — minimum viable)
+Goal: Define what market data inputs are required vs optional for trading decisions (not integrations).
+Files:
+- TODO `09_Data/01_Trading_Data_Inputs.md`
+Done criteria:
+- Clear “Required vs Optional” list
+- Each required input has a fail-safe rule (missing → strict)
+
+### STEP-10 (Data Quality Gates — trading safety)
+Goal: Define when data is too stale/missing/misaligned to permit entries.
+Files:
+- TODO `09_Data/02_Data_Quality_Gates.md`
+Done criteria:
+- Clear PASS/BLOCK/THROTTLE outcomes
+- Explicit: quality fail → BLOCK/THROTTLE entries; exits allowed
+
+### STEP-11 (Replay / Backfill Validation — trading behavior)
+Goal: Validate determinism and fail-safe behavior using historical datasets (Excel/CSV/API dumps).
+Files:
+- TODO `09_Data/03_Replay_Backfill_Validation.md`
+Done criteria:
+- Procedures define how to verify “same data → same decisions”
+- Missing data scenarios default strict
+
+### STEP-12 (Data → Decision Wiring by module)
+Goal: Document which modules require which inputs + strict fallbacks.
+Files:
+- TODO `09_Data/04_Data_Decision_Wiring.md`
+Done criteria:
+- Every major module category lists required inputs
+- Fallbacks are always stricter
+
+### STEP-13 (Data Provenance / Licensing — trading only)
+Goal: Keep data usage legal and traceable without turning the repo into a dataset dump.
+Files:
+- TODO `09_Data/05_Data_Provenance_Licensing.md`
+Done criteria:
+- Clear “what is stored vs pointers only”
+- No secrets/tokens; no restricted raw datasets committed
+
 ## 3.0 Open Items ([INBOX-REVIEW])
 - [INBOX-REVIEW] Edge-positive friction components finalization (canonical location + links).
 - [INBOX-REVIEW] Any missing definitions discovered during STEP-01..STEP-04.
@@ -110,4 +151,3 @@ If BREAKING:
 - Mark `[REVIEW-CONFLICT]`
 - Update Start Here
 - Update playbook references
-

@@ -7,10 +7,11 @@
 - 1.3 Non-negotiables snapshot
 - 1.4 Where to start (P0 order)
 - 1.5 If X happens (default actions)
-- 1.6 How to contribute edits (the standard)
+- 1.6 Data for trading (inputs + quality gates)
+- 1.7 How to contribute edits (the standard)
 
 ## 1.0 What this is
-- A deterministic micro trading documentation universe (1–20m).
+- A deterministic trading documentation universe (all styles; focus 1–20m micro trade).
 - Every file is an operating module: you open it and you can apply it immediately.
 
 ## 1.1 How to use the universe (file-by-file)
@@ -18,7 +19,7 @@
 - When you open any module:
   1) Read the Operating Header (Mission / Use when / Constraints).
   2) Follow the Procedure checklist exactly.
-  3) If anything is unclear → treat as `[INBOX-REVIEW]` and default strict (BLOCK/THROTTLE entries); exits allowed.
+  3) If anything is unclear → tag `[INBOX-REVIEW]` and default strict (BLOCK/THROTTLE entries); exits allowed.
 
 ## 1.2 The decision flow (one line)
 Ready → Winning Bias → Edge-positive → Regime/Router → Setup → Confirm → Enter/Manage → Flip? Exit.
@@ -26,7 +27,7 @@ Ready → Winning Bias → Edge-positive → Regime/Router → Setup → Confirm
 ## 1.3 Non-negotiables snapshot
 - Reduce-first doctrine.
 - Confirmed flip → mandatory reduce/exit current exposure before any new aligned exposure.
-- Readiness/Health can reduce activity to zero entries; exits always allowed.
+- Readiness/Health/Data-Quality can reduce activity to zero entries; exits always allowed.
 - Under uncertainty: Unknown-Mode (block/throttle entries); exits allowed.
 
 ## 1.4 Where to start (P0 order)
@@ -47,15 +48,24 @@ After P0:
 - Regimes/routing (`04_Regimes_and_Routing/*`)
 - Setups + confirmations (`05_Setups/*`)
 - Trade management (`07_Trade_Management/*`)
+- Data (trading inputs only): `09_Data/*`
 - Appendix (`99_Appendix/*`)
 
 ## 1.5 If X happens (default actions)
 - Readiness fails: BLOCK entries; manage exits only; restore health first.
+- Data-quality fails (stale/missing/misaligned): BLOCK/THROTTLE entries; exits allowed.
 - Unknown regime/conflict: Unknown-Mode → BLOCK/THROTTLE entries; exits allowed.
 - Confirmed flip: reduce/exit current exposure before new aligned exposure.
 - Edge unclear/negative: BLOCK entries; exits allowed; tag `[INBOX-REVIEW]`.
 
-## 1.6 How to contribute edits (the standard)
+## 1.6 Data for trading (inputs + quality gates)
+- Data is a trading input, not an integration project.
+- Use:
+  - `09_Data/01_Trading_Data_Inputs.md` (what you need vs optional)
+  - `09_Data/02_Data_Quality_Gates.md` (when missing/stale → strict)
+  - `09_Data/04_Data_Decision_Wiring.md` (which module needs which inputs)
+
+## 1.7 How to contribute edits (the standard)
 - Every module must have:
   - Operating Header
   - Procedure checklist

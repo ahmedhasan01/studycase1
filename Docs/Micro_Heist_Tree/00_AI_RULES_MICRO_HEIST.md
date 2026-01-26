@@ -1,20 +1,21 @@
-﻿# AI Rules Overlay — Aegis Micro Heist (File-by-File Build Universe)
+﻿# AI Rules Overlay — Aegis Micro Heist (Trading-Only Universe)
 
 ## 0.0 Purpose
 - Folder-scoped overlay to `Docs/rules/AI_Rules.md` for `Docs/Micro_Heist_Tree/`.
-- Goal: every file must be immediately understandable and directly applicable as an operating module.
+- Goal: every file must be immediately understandable and directly applicable as an operating module for trading (all styles, with focus on 1–20m micro trade).
 - Default safety: under uncertainty or missing info → become stricter (BLOCK/THROTTLE entries); exits/reductions always allowed.
 - If unresolved conflict → tag `[REVIEW-CONFLICT]` and DO NOT guess.
 - If missing definitions/criteria → tag `[INBOX-REVIEW]` and default strict.
 
-## 0.1 Run Modes (Comparison Pipelines)
-- MODE 1 (LOCAL + AI_DB):
-  - Consult local project docs + AI Trusted DB.
-  - Produce a single final patch (best result), no per-source patch notes in output.
-- MODE 2 (LOCAL + ONLINE + AI_DB):
-  - Consult local project docs + online trusted books/sources + AI Trusted DB.
-  - External is rationale-only; local canonical rules win.
-  - Produce a single final patch, no per-source patch notes in output.
+## 0.1 Canon Policy (Local rules are king)
+- Project-local docs are canonical.
+- External/online/books may be consulted ONLY as *rationale* for wording/definitions when needed.
+- External rationale MUST NOT:
+  - override invariants,
+  - introduce numeric thresholds if not already local,
+  - weaken gating under uncertainty,
+  - change the precedence ladder.
+- If external conflicts with local canon → discard external.
 
 ## 1.0 Non-Negotiables (INVARIANTS)
 - Long/Short only; no venue types/names.
@@ -26,7 +27,7 @@
 - Minimal regime taxonomy: Trend, Range, Chop/Noise, High-Vol Expansion, Low-Vol Compression, Shock/Dislocation.
 
 ## 2.0 Precedence Ladder (Always)
-1) Operational Robustness (health/readiness/shock) — may veto entries.
+1) Operational Robustness (health/readiness/shock/data-quality) — may veto entries.
 2) Core Invariants (Section 1.0).
 3) Confirmed flip exit mandate.
 4) Winning Bias priority + bias strength tier behavior.
@@ -35,16 +36,10 @@
 7) Setup definitions.
 8) Frequency fine-tuning (adaptive, tighten-only).
 
-## 3.0 Canonical vs Advisory
-- Canonical rules live in ONE place only (single source of truth).
-- Advisory content (books/online) is rationale-only and must be labeled as such.
-- Do NOT introduce numeric thresholds unless already present locally.
-- If external conflicts with invariants/robustness gating → discard external.
-
-## 4.0 Mandatory File Standard (Every `.md` module)
+## 3.0 Mandatory File Standard (Every `.md` module)
 Every file MUST start with the following header (INTEGRATE-only: add on top without rewriting existing content unless requested):
 
-### 4.1 Operating Header (required)
+### 3.1 Operating Header (required)
 - Mission:
 - Use when:
 - Hard constraints (cannot override):
@@ -53,18 +48,26 @@ Every file MUST start with the following header (INTEGRATE-only: add on top with
 - Failure modes (top 3):
 - Non-goals:
 
-### 4.2 Procedure (required)
+### 3.2 Procedure (required)
 A checklist of exact steps to apply this module (5–12 steps):
-1) Preconditions (readiness/health, unknown-mode, etc.)
+1) Preconditions (readiness/health/data-quality/unknown-mode, etc.)
 2) Checks (what to inspect)
 3) Decision (PASS/BLOCK/THROTTLE)
 4) Action (enter/manage/exit)
 5) Abort conditions (when to stop / go Unknown-Mode)
 6) Post-action note (what to record)
 
-### 4.3 Anti-duplication rule
+### 3.3 Anti-duplication rule
 - If a definition exists canonically elsewhere, link it; do not copy it.
 - If linking would make the file unusable, include a short local “definition stub” and link to the canonical definition.
+
+## 4.0 Trading Data Rule (Trading-only; not engineering)
+- Data is treated as a trading input, not an integration project.
+- We only define:
+  - what data is required/optional,
+  - how to validate it (quality gates),
+  - how decisions fail-safe when data is missing.
+- If required data is missing or stale → BLOCK/THROTTLE entries; exits allowed.
 
 ## 5.0 QA Gates (Before marking a file DONE)
 - Header present and accurate (Mission/Use/Constraints/Procedure).
