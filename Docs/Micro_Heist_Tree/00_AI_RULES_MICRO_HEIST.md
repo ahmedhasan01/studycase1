@@ -8,6 +8,16 @@
 - If missing definitions/criteria → tag `[INBOX-REVIEW]` and default strict.
 
 ## 0.1 Canon Policy (Local rules are king)
+
+## 0.2 GitHub RAW Read-Before-Write (Mandatory)
+- Before modifying or relying on any module/file, the assistant MUST open and read the GitHub RAW(main) version of that file.
+- Do NOT rely on memory, local copies, or assumptions.
+- If RAW(main) is not accessible or the file cannot be read fully: STOP and tag [INBOX-REVIEW] (default strict behavior: BLOCK/THROTTLE entries; exits allowed).
+- Workflow for every patch:
+  1) Get RAW(main) link from Docs/_meta/Road_map.md.
+  2) Read the RAW file fully.
+  3) Apply INTEGRATE-only edits and commit/push.
+
 - Project-local docs are canonical.
 - External/online/books may be consulted ONLY as *rationale* for wording/definitions when needed.
 - External rationale MUST NOT:

@@ -15,6 +15,11 @@
 - Every file is an operating module: you open it and you can apply it immediately.
 
 ## 1.1 How to use the universe (file-by-file)
+
+## 1.1A GitHub RAW rule (mandatory)
+- Any time you use or edit a module, first open and read its GitHub RAW(main) version.
+- If RAW cannot be read, treat the topic as [INBOX-REVIEW] and default strict (BLOCK/THROTTLE entries; exits allowed).
+
 - Read the P0 files in order (Section 1.4).
 - When you open any module:
   1) Read the Operating Header (Mission / Use when / Constraints).

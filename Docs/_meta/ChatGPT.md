@@ -220,6 +220,12 @@ The GitHub repo is PUBLIC and is the source of truth for reading current file co
 
 #meta
 
+## Operating constraints (current)
+- GitHub RAW(main) is mandatory before any file edit/use.
+- External sources are rationale-only; local docs remain canonical.
+- Data is trading-input only (no integration engineering).
+
+
 ## Trading-only universe policy (current)
 - No MODE 1/2: local docs are canonical; external info is rationale-only when needed.
 - Data is treated as a trading input only (no adapters/integration engineering).
