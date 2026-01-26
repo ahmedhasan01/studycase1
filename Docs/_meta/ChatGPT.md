@@ -242,4 +242,5 @@ The GitHub repo is PUBLIC and is the source of truth for reading current file co
   - Docs/Micro_Heist_Tree/09_Data/03_Replay_Backfill_Validation.md
   - Docs/Micro_Heist_Tree/09_Data/04_Data_Decision_Wiring.md
   - Docs/Micro_Heist_Tree/09_Data/05_Data_Provenance_Licensing.md
-
+## Step/Folder Clean Gate (mandatory)
+- Before any patch: read GitHub source (RAW or origin/main), ensure clean working tree (stash if needed), auto-restore drift, then edit + commit/push.

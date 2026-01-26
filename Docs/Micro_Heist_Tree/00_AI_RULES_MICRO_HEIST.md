@@ -122,3 +122,21 @@ Goal: “Clean like checklist” (readable, deterministic), but the module is st
 
 **Linking rule:**
 - If something is canon elsewhere → link it, do not copy it. (Definition stubs allowed only if needed for usability.)
+
+## 7.2 Step/Folder Clean Gate (Mandatory)
+Applies to every patch and every folder.
+
+**Gate order (must be enforced):**
+1) **GitHub Source Gate:** target files MUST be read from GitHub (RAW(main) or origin/main:<path>).
+2) **Working Tree Gate:** working tree MUST be clean before edits.
+   - If not clean, default action is to stash:
+     - git stash push -u -m "stash before patch <step>/<folder>"
+   - Never run a patch on a dirty tree.
+3) **Auto-restore Gate (Option A):** if local differs from GitHub for any target file:
+   - auto-restore local from GitHub, then apply edits.
+4) **Commit Gate:** commit + push only after gates pass; 1 patch = 1 commit.
+
+**Notes:**
+- Stashed changes must be re-applied later and committed separately.
+- If RAW fetch fails, origin/main:<path> is the fallback for GitHub truth.
+
