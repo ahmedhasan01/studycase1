@@ -99,3 +99,26 @@ A checklist of exact steps to apply this module (5–12 steps):
   2) Auto-restore the local file to match RAW(main),
   3) Only then apply edits.
 - Never continue edits on a drifted local copy.
+
+
+### 4.4 Clean Module Style (required)
+Goal: “Clean like checklist” (readable, deterministic), but the module is still a full module (not a checklist doc).
+
+**Canonical structure order (keep it tight):**
+1) # Title
+2) ## Operating Header
+3) ## Procedure
+4) ## Decision States (PASS / THROTTLE / BLOCK)
+5) ## Triggers (what moves state)
+6) ## Actions (what to do now)
+7) ## Recovery Ladder (how to return to PASS)
+8) ## Notes (max 2–3 bullets)
+
+**Legacy policy (mandatory):**
+- Any legacy / duplicated / pre-standard content MUST be preserved but wrapped inside:
+  - ## Legacy (pre-standard) ...
+  - <details><summary>Show legacy content</summary> ... </details>
+- Never keep legacy as a second visible full document that repeats headings at top level.
+
+**Linking rule:**
+- If something is canon elsewhere → link it, do not copy it. (Definition stubs allowed only if needed for usability.)
