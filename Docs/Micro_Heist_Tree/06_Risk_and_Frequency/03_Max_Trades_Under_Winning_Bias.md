@@ -1,6 +1,25 @@
 ﻿# Max Trades Under Winning Bias
 
 ## Operating Header
+- Mission: Ensure frequency caps NEVER override readiness/health/router eligibility (tighten-only).
+- Hard constraints:
+  - If Readiness is not PASS ⇒ effectively BLOCK entries (exits allowed).
+  - Shock/Dislocation/Unknown-Mode ⇒ default BLOCK entries (exits allowed).
+  - No numeric caps introduced here; otherwise tag [INBOX-REVIEW].
+
+## Procedure
+1) If readiness THROTTLE/BLOCK ⇒ tighten activity or stop.
+2) If bias is strong BUT readiness is degraded ⇒ do not trade it (strict).
+3) If bias flips confirmed ⇒ reduce/exit first, then reassess.
+4) Only allow attempts when router says ALLOW/THROTTLE and edge-positive is met.
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Max Trades)</summary>
+
+# Max Trades Under Winning Bias
+
+## Operating Header
 - Mission: Define frequency caps behavior under Winning Bias WITHOUT introducing new numeric limits.
 - Hard constraints:
   - No new numeric limits; if limits are needed ⇒ [INBOX-REVIEW].
@@ -89,6 +108,8 @@
 
 1.5 Open Questions
 - [INBOX-REVIEW] Exact numeric trade caps per regime and per session.
+
+</details>
 
 </details>
 

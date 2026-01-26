@@ -1,6 +1,24 @@
 ﻿# Risk Bounds
 
 ## Operating Header
+- Mission: Qualitative bounds (no new numbers) and tightening behavior under uncertainty.
+- Hard constraints:
+  - Under Unknown-Mode/shock ⇒ tighten-only; never loosen.
+  - Missing criteria ⇒ [INBOX-REVIEW] + strict default.
+
+## Procedure
+1) THROTTLE ⇒ reduce attempts and avoid adding risk.
+2) BLOCK ⇒ freeze entries; exits only.
+3) Friction worsens ⇒ tighten further.
+4) Return only via readiness ladder.
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Risk Bounds)</summary>
+
+# Risk Bounds
+
+## Operating Header
 - Mission: Define qualitative risk bounds (no new numbers) and how they tighten under uncertainty.
 - Hard constraints:
   - Missing bounds criteria ⇒ [INBOX-REVIEW] + default stricter behavior.
@@ -69,6 +87,8 @@
 
 1.5 Open Questions
 - [INBOX-REVIEW] Specific numeric caps to set for sessions and trades.
+
+</details>
 
 </details>
 

@@ -1,6 +1,34 @@
 ﻿# Core Invariants
 
 ## Operating Header
+- Mission: Non-adaptive guardrails that ALWAYS override all other modules in live 1–20m trading.
+- Hard constraints (cannot override):
+  - Reduce-first doctrine.
+  - Confirmed flip ⇒ reduce/exit current exposure before new aligned exposure.
+  - Edge unclear/negative ⇒ BLOCK entries; exits allowed.
+  - Readiness/data-quality fail ⇒ BLOCK entries; exits allowed.
+  - Unknown-Mode/Conflict unresolved ⇒ strict (BLOCK/THROTTLE entries); exits allowed.
+
+## Procedure
+1) Run readiness gates first (veto-capable).
+2) Apply reduce-first on degradation/conflict.
+3) Confirmed flip ⇒ exit/reduce first (no overlap).
+4) If edge/friction unclear ⇒ BLOCK entries (strict default).
+
+## Invariants (canonical list)
+- Reduce-first.
+- Flip-first-exit.
+- Edge-positive required for entries.
+- Readiness veto over “beautiful setups”.
+- Determinism: same inputs ⇒ same decisions.
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Core Invariants)</summary>
+
+# Core Invariants
+
+## Operating Header
 - Mission: Define non-adaptive guardrails for live 1–20 minute trading that always hold, regardless of regime or bias.
 - Use when: Before any entry; when bias/regime conflicts; when a flip is suspected; when readiness/data-quality is degraded.
 - Hard constraints (cannot override):
@@ -70,4 +98,6 @@ Define non-adaptive guardrails for live 1–20 minute trading that always hold, 
 
 ## 1.5 Open Questions
 - [INBOX-REVIEW] Precise edge-positive metric definition and threshold.
+
+</details>
 

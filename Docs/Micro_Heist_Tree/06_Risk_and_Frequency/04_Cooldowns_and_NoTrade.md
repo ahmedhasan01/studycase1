@@ -1,6 +1,23 @@
 ﻿# Cooldowns and No-Trade
 
 ## Operating Header
+- Mission: Deterministic cooldown/no-trade rules (qualitative; no new numbers).
+- Hard constraints:
+  - Failures/emotional compromise ⇒ BLOCK entries until readiness PASS again.
+  - No numeric timers unless already present; otherwise [INBOX-REVIEW].
+
+## Procedure
+1) After any failure class ⇒ BLOCK entries; manage exits only.
+2) After repeated uncertainty/conflict ⇒ THROTTLE then consider BLOCK.
+3) Resume via readiness ladder only (THROTTLE → PASS).
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Cooldowns/No-Trade)</summary>
+
+# Cooldowns and No-Trade
+
+## Operating Header
 - Mission: Define cooldown / no-trade logic in qualitative, deterministic terms (no new numbers).
 - Hard constraints:
   - Emotional/operational failure ⇒ enforce no-trade until readiness PASS again.
@@ -68,6 +85,8 @@
 
 1.5 Open Questions
 - [INBOX-REVIEW] Duration and criteria for lifting cooldowns.
+
+</details>
 
 </details>
 

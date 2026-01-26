@@ -1,6 +1,24 @@
 ﻿# Risk Objectives
 
 ## Operating Header
+- Mission: Trading-only risk objectives for 1–20m micro horizon (survival first, then consistency).
+- Hard constraints:
+  - No new numeric thresholds; otherwise tag [INBOX-REVIEW].
+  - Readiness veto always wins (BLOCK entries; exits allowed).
+
+## Procedure
+1) Confirm readiness state.
+2) If THROTTLE/BLOCK ⇒ tighten-only or stand down.
+3) Treat every entry as optional; avoid “must trade”.
+4) Prefer small, reversible exposure under uncertainty.
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Risk Objectives)</summary>
+
+# Risk Objectives
+
+## Operating Header
 - Mission: Define trading-only risk objectives for 1–20m micro horizon (survival first, then consistency).
 - Hard constraints:
   - No numeric thresholds unless already present locally; otherwise tag [INBOX-REVIEW].
@@ -73,6 +91,8 @@
 
 1.5 Open Questions
 - [INBOX-REVIEW] Specific risk metrics (e.g., max draw per session) to adopt.
+
+</details>
 
 </details>
 

@@ -1,6 +1,30 @@
 ﻿# Decision Glossary
 
 ## Operating Header
+- Mission: Canonical vocabulary for PASS/THROTTLE/BLOCK and gating terms (Ready, Edge-positive, Friction, Unknown-Mode…).
+- Hard constraints:
+  - Missing criteria ⇒ [INBOX-REVIEW] + strict default (BLOCK/THROTTLE entries); exits allowed.
+  - Other modules must link here (no redefinition).
+
+## Procedure
+1) Any module using a gating term MUST reference this file.
+2) If you must add a new term: keep it trading-only and deterministic.
+
+## Canonical terms (trading-only)
+- PASS / THROTTLE / BLOCK: entry permission states (exits always allowed).
+- Ready/Readiness: data-quality + platform/execution stability + operator state.
+- Edge-positive: edge > friction (if undefined → [INBOX-REVIEW] and treat as not met).
+- Friction: spread + slippage/impact + fees + adverse selection.
+- Confirmed flip: confirmed bias change requiring reduce/exit first.
+- Unknown-Mode: unresolved regime/conflict; strict default.
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Decision Glossary)</summary>
+
+# Decision Glossary
+
+## Operating Header
 - Mission: Provide canonical decision terms used to gate trading (Ready, Winning Bias, Confirmed flip, Edge-positive, Friction, Unknown-Mode, VALID, Throttle).
 - Use when: Any module outputs PASS/BLOCK/THROTTLE or references readiness/edge/friction/unknown-mode.
 - Hard constraints (cannot override):
@@ -41,4 +65,6 @@
 - **Throttle**: intentional reduction of frequency/size; applies when uncertainty, caps, or cooldowns demand tighter behavior.
 
 # CANONICAL END (Decision Glossary)
+
+</details>
 
