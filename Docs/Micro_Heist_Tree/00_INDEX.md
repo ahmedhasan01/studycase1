@@ -58,6 +58,7 @@
 | 0.5.5.a | Section | 05_Setups/05_Confirmation_Gates.md#1-2-rules | Rules: persistence + confirm filters | Core Invariants |
 | 0.6.3.a | Section | 06_Risk_and_Frequency/03_Max_Trades_Under_Winning_Bias.md#1-2-rules | Rules: frequency caps under bias/readiness | Core Invariants |
 | 0.8.3.a | Section | 08_Operational_Robustness/03_Failure_Modes_and_Emergency_Actions.md#1-2-rules | Rules: block entries on failure, exits allowed | Core Invariants |
+| 09_Data | Trading-only data layer (inputs + quality gates + fail-safe) | Docs/Micro_Heist_Tree/09_Data/01_Trading_Data_Inputs.md |
 
 1.3 Conflict Precedence
 - Core Invariants win any conflict.
