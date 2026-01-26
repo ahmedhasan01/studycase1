@@ -1,5 +1,48 @@
 ﻿# Max Trades Under Winning Bias
 
+## Operating Header
+- Mission: Define frequency caps behavior under Winning Bias WITHOUT introducing new numeric limits.
+- Hard constraints:
+  - No new numeric limits; if limits are needed ⇒ [INBOX-REVIEW].
+  - Winning Bias never overrides readiness/health/data-quality veto.
+- Inputs / Dependencies:
+  - Docs/Micro_Heist_Tree/03_Bias_System/02_Priority_Biased_Side.md
+  - Docs/Micro_Heist_Tree/08_Operational_Robustness/01_Readiness_and_Health_Gates.md
+  - Docs/Micro_Heist_Tree/01_Foundations/04_Core_Invariants.md
+- Outputs / Decisions: Frequency tightening rules.
+
+## Procedure
+1) If PASS + strong bias → allow more attempts, but still confirmation-gated and risk-bounded.
+2) If THROTTLE → reduce attempts aggressively (tighten-only).
+3) If BLOCK → no entries.
+4) If bias flips confirmed → reduce/exit first; then reassess.
+
+## Decision States
+- PASS: allowed (subject to all other gates).
+- THROTTLE: tighten activity; stricter confirmations; prefer no-trade.
+- BLOCK: freeze entries; exits/reductions allowed.
+
+## Triggers
+- Readiness/health/data-quality changes.
+- Friction/impact surprise (fills worsen).
+- Bias flip/unknown-mode conflicts.
+
+## Actions
+- Tighten-only under uncertainty.
+- Reduce-first on conflict or degradation.
+
+## Recovery Ladder
+1) Fix data/platform/operator state.
+2) Return via THROTTLE first.
+3) Only then PASS.
+
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Max Trades)</summary>
+
+# Max Trades Under Winning Bias
+
 ### Readiness-Gated Frequency Caps (Hardening)
 - Purpose: Ensure max-trades / frequency caps NEVER override Readiness/Health and Router entry permissioning (tighten-only).
 - See: `08_Operational_Robustness/01_Readiness_and_Health_Gates.md` (readiness failures force exit-only; new entries blocked until readiness is unambiguous).
@@ -46,3 +89,6 @@
 
 1.5 Open Questions
 - [INBOX-REVIEW] Exact numeric trade caps per regime and per session.
+
+</details>
+

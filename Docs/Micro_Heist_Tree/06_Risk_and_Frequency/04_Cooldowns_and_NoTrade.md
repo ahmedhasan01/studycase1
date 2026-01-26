@@ -1,3 +1,44 @@
+﻿# Cooldowns and No-Trade
+
+## Operating Header
+- Mission: Define cooldown / no-trade logic in qualitative, deterministic terms (no new numbers).
+- Hard constraints:
+  - Emotional/operational failure ⇒ enforce no-trade until readiness PASS again.
+  - No numeric timers unless already present locally; otherwise [INBOX-REVIEW].
+- Inputs / Dependencies:
+  - Docs/Micro_Heist_Tree/08_Operational_Robustness/03_Failure_Modes_and_Emergency_Actions.md
+  - Docs/Micro_Heist_Tree/08_Operational_Robustness/01_Readiness_and_Health_Gates.md
+- Outputs / Decisions: When to pause after loss/flip/failure.
+
+## Procedure
+1) After any failure class (data/platform/operator/shock) → BLOCK entries.
+2) After repeated uncertainty/conflict → THROTTLE then consider BLOCK.
+3) Resume via readiness ladder only; never “jump back in”.
+
+## Decision States
+- PASS: allowed (subject to all other gates).
+- THROTTLE: tighten activity; stricter confirmations; prefer no-trade.
+- BLOCK: freeze entries; exits/reductions allowed.
+
+## Triggers
+- Readiness/health/data-quality changes.
+- Friction/impact surprise (fills worsen).
+- Bias flip/unknown-mode conflicts.
+
+## Actions
+- Tighten-only under uncertainty.
+- Reduce-first on conflict or degradation.
+
+## Recovery Ladder
+1) Fix data/platform/operator state.
+2) Return via THROTTLE first.
+3) Only then PASS.
+
+
+## Legacy (pre-standard) content (do not treat as canon unless re-integrated)
+<details>
+<summary>Show legacy content (Cooldowns/No-Trade)</summary>
+
 # Cooldowns and No-Trade
 
 ## Mini-Index
@@ -27,3 +68,6 @@
 
 1.5 Open Questions
 - [INBOX-REVIEW] Duration and criteria for lifting cooldowns.
+
+</details>
+
