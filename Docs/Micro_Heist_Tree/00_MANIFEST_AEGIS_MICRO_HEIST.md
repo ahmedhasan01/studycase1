@@ -55,10 +55,10 @@ Done criteria:
 ### STEP-03 (P0 Risk / Frequency / Friction)
 Goal: Make risk and activity limits directly applicable.
 Files:
-- TODO `06_Risk_and_Frequency/01_Risk_Objectives.md`
-- TODO `06_Risk_and_Frequency/02_Risk_Bounds.md`
-- TODO `06_Risk_and_Frequency/03_Max_Trades_Under_Winning_Bias.md`
-- TODO `06_Risk_and_Frequency/04_Cooldowns_and_NoTrade.md`
+- DONE `06_Risk_and_Frequency/01_Risk_Objectives.md`
+- DONE `06_Risk_and_Frequency/02_Risk_Bounds.md`
+- DONE `06_Risk_and_Frequency/03_Max_Trades_Under_Winning_Bias.md`
+- DONE `06_Risk_and_Frequency/04_Cooldowns_and_NoTrade.md`
 Done criteria:
 - Frequency caps explicitly subordinate to readiness/health
 - Edge>friction gate references canonical definitions (no duplication)
@@ -151,5 +151,6 @@ If BREAKING:
 - Mark `[REVIEW-CONFLICT]`
 - Update Start Here
 - Update playbook references
+
 
 
