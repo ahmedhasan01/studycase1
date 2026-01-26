@@ -45,8 +45,8 @@ Notes:
 ### STEP-02 (P0 Readiness / Health / Failure)
 Goal: Ensure readiness gates and failure responses are deterministic.
 Files:
-- TODO `08_Operational_Robustness/01_Readiness_and_Health_Gates.md`
-- TODO `08_Operational_Robustness/03_Failure_Modes_and_Emergency_Actions.md`
+- DONE `08_Operational_Robustness/01_Readiness_and_Health_Gates.md`
+- DONE `08_Operational_Robustness/03_Failure_Modes_and_Emergency_Actions.md`
 Done criteria:
 - Clear PASS/BLOCK/THROTTLE logic
 - “block entries / exits allowed” explicit
@@ -151,4 +151,5 @@ If BREAKING:
 - Mark `[REVIEW-CONFLICT]`
 - Update Start Here
 - Update playbook references
+
 
