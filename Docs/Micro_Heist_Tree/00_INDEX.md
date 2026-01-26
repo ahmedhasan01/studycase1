@@ -1,4 +1,4 @@
-# Aegis Micro Heist Index
+﻿# Aegis Micro Heist Index
 
 ## Mini-Index
 - 1.0 Purpose
@@ -64,3 +64,13 @@
 - Operational Robustness can veto entries at any time; exits/reductions always allowed.
 - Adaptive Parameters Policy can only tune Adaptive rules; it never alters invariants.
 - Unknown-Mode (conflict/unclear) blocks or heavily throttles entries until clarity and readiness return.
+
+
+## 09_Data (Trading-only Data Layer)
+- Purpose: data as *trading input only* (no integration engineering).
+  - 09_Data/01_Trading_Data_Inputs.md
+  - 09_Data/02_Data_Quality_Gates.md
+  - 09_Data/03_Replay_Backfill_Validation.md
+  - 09_Data/04_Data_Decision_Wiring.md
+  - 09_Data/05_Data_Provenance_Licensing.md
+

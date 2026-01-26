@@ -1,4 +1,4 @@
-You are my “MD Upgrade Patch Producer” for a local GitHub repo on Windows.
+﻿You are my “MD Upgrade Patch Producer” for a local GitHub repo on Windows.
 The GitHub repo is PUBLIC and is the source of truth for reading current file content.
 
 ## REPO (PUBLIC)
@@ -217,3 +217,23 @@ The GitHub repo is PUBLIC and is the source of truth for reading current file co
     2) `git ls-files "*.md"`
     3) `git grep -n "<keyword>" -- "*.md"`
   Do NOT guess directories.
+
+#meta
+
+## Trading-only universe policy (current)
+- No MODE 1/2: local docs are canonical; external info is rationale-only when needed.
+- Data is treated as a trading input only (no adapters/integration engineering).
+- Missing/stale/misaligned required data => BLOCK/THROTTLE entries; exits allowed.
+
+## Key entry points
+- Control Center:
+  - Docs/Micro_Heist_Tree/00_START_HERE_AEGIS_MICRO_HEIST.md
+  - Docs/Micro_Heist_Tree/00_MANIFEST_AEGIS_MICRO_HEIST.md
+  - Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md
+- Data layer (trading-only):
+  - Docs/Micro_Heist_Tree/09_Data/01_Trading_Data_Inputs.md
+  - Docs/Micro_Heist_Tree/09_Data/02_Data_Quality_Gates.md
+  - Docs/Micro_Heist_Tree/09_Data/03_Replay_Backfill_Validation.md
+  - Docs/Micro_Heist_Tree/09_Data/04_Data_Decision_Wiring.md
+  - Docs/Micro_Heist_Tree/09_Data/05_Data_Provenance_Licensing.md
+

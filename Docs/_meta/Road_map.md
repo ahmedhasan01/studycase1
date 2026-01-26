@@ -106,6 +106,18 @@
 - Docs/Micro_Heist_Tree/08_Operational_Robustness/04_Live_Run_Checklist.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/08_Operational_Robustness/04_Live_Run_Checklist.md
 
+## Docs\Micro_Heist_Tree\09_Data
+- Docs/Micro_Heist_Tree/09_Data/01_Trading_Data_Inputs.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/09_Data/01_Trading_Data_Inputs.md
+- Docs/Micro_Heist_Tree/09_Data/02_Data_Quality_Gates.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/09_Data/02_Data_Quality_Gates.md
+- Docs/Micro_Heist_Tree/09_Data/03_Replay_Backfill_Validation.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/09_Data/03_Replay_Backfill_Validation.md
+- Docs/Micro_Heist_Tree/09_Data/04_Data_Decision_Wiring.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/09_Data/04_Data_Decision_Wiring.md
+- Docs/Micro_Heist_Tree/09_Data/05_Data_Provenance_Licensing.md
+  - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/09_Data/05_Data_Provenance_Licensing.md
+
 ## Docs\Micro_Heist_Tree\10_Playbook
 - Docs/Micro_Heist_Tree/10_Playbook/00_Runtime_Checklists.md
   - RAW(main): https://raw.githubusercontent.com/ahmedhasan01/studycase1/main/Docs/Micro_Heist_Tree/10_Playbook/00_Runtime_Checklists.md
