@@ -22,7 +22,7 @@
 - MAY throttle or stand down when clarity is low.
 
 1.3 Edge Cases / Conflicts
-- If scope drifts beyond 20 minutes, treat as out-of-scope; reframe or reject.
+- If scope drifts beyond 30 minutes, treat as out-of-scope; reframe or reject.
 
 1.4 Examples (minimal, conceptual)
 - Quick Long scalp aiming for 1-20 minutes with strict confirmations and robustness OK.
