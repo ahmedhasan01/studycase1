@@ -2,8 +2,7 @@
 
 ## Operating Header
 - **Mission:** Define non-adaptive guardrails for live 1–20 minute trading that always hold.
-- **Use when:** Before any entry; when bias/regime conflicts; when a flip is suspected; when readiness/data-quality is degraded.
-- **Scope / Specialization:** Invariants-only module. Defines veto-capable guardrails for 1–20m micro-scalp execution (entries vetoed; exits/reductions allowed). No setup catalog; no indicator tuning.
+- **Use when:** Before any entry; when bias/regime conflicts; when a flip is suspected; when readiness/data-quality is degraded.
 - **Hard constraints (cannot override):**
   - Reduce-first doctrine.
   - **Confirmed flip** ⇒ mandatory exit current exposure before any new aligned exposure.
@@ -35,17 +34,6 @@
 - **THROTTLE:** Uncertainty elevated → fewer/stricter entries; exits allowed.
 - **BLOCK:** No new entries; exits/reductions allowed.
 - **EXIT/REDUCE:** Mandatory when flip/health/risk dictates.
-
-## Observability
-- **Minimum decision log (every entry veto / entry allow / forced exit):**
-  - Timestamp, symbol, timeframe
-  - Readiness/Health state (PASS/THROTTLE/BLOCK) + reason
-  - Regime/Conflict state (CLEAR / UNCLEAR / Unknown-Mode) + reason
-  - Confirmed flip state (YES/NO) + evidence reference (bar IDs / signal snapshot)
-  - Edge-positive status (MET / NOT MET / UNDEFINED) + summary
-  - Friction snapshot (spread, slippage estimate, fees if relevant) + pass/fail vs LOCAL caps
-  - Action taken (PASS / THROTTLE / BLOCK / EXIT/REDUCE) + short rationale
-- **Violation handling:** If any module suggests weakening invariants or overrides a veto ⇒ tag **[REVIEW-CONFLICT]** and store the decision log.
 
 ## Mini-Index
 - 1.0 Purpose
@@ -89,52 +77,22 @@ Define non-adaptive guardrails for live 1–20 minute trading that always hold, 
 
 > Operating rule: until these are resolved, default strict behavior applies (BLOCK/THROTTLE entries; exits/reductions allowed). Tag items as [INBOX-REVIEW]. Do not guess.
 
-### Definitions
+### Questions
 - [INBOX-REVIEW] **Confirmed flip:** canonical definition + confirmation criteria; where is it defined?
 - [INBOX-REVIEW] **Unknown-Mode:** exact triggers for “conflict unresolved / regime unclear”; where is it defined?
-- [INBOX-REVIEW] **Edge-positive:** operational definition (deterministic) without ambiguity.
-- [INBOX-REVIEW] **Friction:** which components are included (spread / slippage / fees / latency) and how to treat deterministically.
-
-### Precedence
-- [INBOX-REVIEW] Precedence when signals/confirmations disagree with robustness gates: confirm “health veto wins” for entries in all cases.
-- [INBOX-REVIEW] Precedence when Confirmed flip is true but edge-positive is unclear: confirm whether full flatten is mandatory vs staged reduce allowed.
-
-### Execution semantics
-- [INBOX-REVIEW] **EXIT vs REDUCE:** does “exit current exposure” mean full flatten immediately, or is staged reduction acceptable before full flatten?
-- [INBOX-REVIEW] **No overlap opposing exposures:** absolute ban on hedging, or ban on opening opposite exposure before closing current?
-
-### THROTTLE vs BLOCK boundary
-- [INBOX-REVIEW] Define the deterministic boundary between THROTTLE and BLOCK under uncertainty (regime unclear, conflict unresolved, flip suspicion).
-
-### Candidate Thresholds (LOCAL)
-> These numeric thresholds are **LOCAL** (not canonical). They must include units + applicability. If violated or unknown ⇒ treat edge as NOT met ⇒ BLOCK entries; exits/reductions allowed.
-
-#### Friction caps (Entry gating)
-- [LOCAL] **Max spread:** spread ≤ **10 bps** (0.10%) OR spread ≤ **0.15 × typical spread baseline** for the session (choose the stricter).
-- [LOCAL] **Max slippage estimate:** slippage_est ≤ **5 bps** OR slippage_est ≤ **0.5 × spread** (choose stricter).
-- [LOCAL] **All-in friction budget:** (spread + slippage_est + fees) ≤ **15 bps**; otherwise edge treated as NOT met.
-
-#### Unknown-Mode triggers (Conflict gating)
-- [LOCAL] Unknown-Mode ON if bias/regime is contradictory for **≥ 3 consecutive closed bars** on the trade timeframe.
-- [LOCAL] Unknown-Mode ON if spread cap is violated for **≥ 2 bars** (liquidity event proxy).
-
-#### Confirmed flip (LOCAL confirmation)
-- [LOCAL] Confirmed flip = flip signal present AND **2 consecutive closes** aligned with the new direction AND prior direction invalidation signal is present.
-- [LOCAL] If Confirmed flip = YES ⇒ **EXIT current exposure before any new aligned exposure** (no overlap).
-
-#### THROTTLE vs BLOCK (LOCAL boundary)
-- [LOCAL] THROTTLE allowed only if: readiness PASS AND edge-positive MET AND regime uncertainty duration < **3 bars**.
-- [LOCAL] BLOCK if: edge/friction undefined OR readiness not PASS OR bias conflict OR Unknown-Mode ON.
+- [INBOX-REVIEW] **Edge-positive:** operational definition without introducing new numeric thresholds.
+- [INBOX-REVIEW] **Friction:** what components are included (spread/impact only, or also slippage/fees/latency); deterministic handling without adding numbers.
+- [INBOX-REVIEW] **EXIT vs REDUCE:** does “exit current exposure” mean full flatten immediately, or staged reduction allowed before full exit?
 
 ### Missing
 - [INBOX-REVIEW] Canonical links for Confirmed flip / Unknown-Mode / Edge-positive / Friction once finalized.
-- [INBOX-REVIEW] Explicit triggers for THROTTLE vs BLOCK under uncertainty (if LOCAL is rejected).
+- [INBOX-REVIEW] Explicit triggers for THROTTLE vs BLOCK under uncertainty.
 
 ### Contradictions
 - None detected inside this file currently. Watch for future definitions that weaken robustness veto or permit entries when edge/friction is undefined.
 
 ### Safe defaults until resolved
 - If Edge-positive is not explicitly defined/verified ⇒ treat edge as NOT met ⇒ **BLOCK entries; exits/reductions allowed**.
-- If Friction definition is missing/unknown ⇒ treat edge as NOT met ⇒ **BLOCK entries; exits/reductions allowed**.
+- If Friction definition is missing ⇒ treat edge as NOT met ⇒ **BLOCK entries; exits/reductions allowed**.
 - If Confirmed flip definition is unclear in live context ⇒ treat as uncertainty ⇒ **THROTTLE/BLOCK entries** and prioritize reducing risk; never overlap opposing exposures.
 - If Unknown-Mode trigger is uncertain ⇒ prefer **Unknown-Mode strict** (BLOCK/THROTTLE entries); exits allowed.
