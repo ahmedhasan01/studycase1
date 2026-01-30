@@ -88,6 +88,7 @@ A checklist of exact steps to apply this module (5–12 steps):
 - If required data is missing or stale → BLOCK/THROTTLE entries; exits/reductions allowed.
 
 ## 5.0 QA Gates (Before marking a file DONE)
+- **Open Questions (Audit)** section is present (even if it says `"None detected`"); unresolved items default strict and are tagged `[INBOX-REVIEW]`.
 - Header present and accurate (Mission/Use/Constraints/Procedure).
 - Definitions consistent with glossary; no terminology drift.
 - No weakening of invariants or precedence ladder.
@@ -99,5 +100,6 @@ A checklist of exact steps to apply this module (5–12 steps):
 - Touch 1–4 files per patch.
 - Integrate only; avoid refactors unless explicitly requested.
 - Each completed file must be directly usable by a reader without needing hidden context.
+
 
 
