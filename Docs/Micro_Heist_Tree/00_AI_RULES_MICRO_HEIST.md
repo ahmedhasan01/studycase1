@@ -100,3 +100,4 @@ A checklist of exact steps to apply this module (5–12 steps):
 - Integrate only; avoid refactors unless explicitly requested.
 - Each completed file must be directly usable by a reader without needing hidden context.
 
+

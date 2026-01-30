@@ -14,7 +14,7 @@
 - External/online/books are rationale-only (if used), never canon.
 
 ## 1.0 The Standard (must be applied to every module)
-- Canonical module standard is defined in: `Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md`
+- EXECUTE_STANDARD must ensure an **Open Questions (Audit)** section exists in every module (add stub if missing; populate from audit).\n- Canonical module standard is defined in: `Docs/Micro_Heist_Tree/00_AI_RULES_MICRO_HEIST.md`
 - Editing protocol is canonical in:
 - EXECUTE_STANDARD ends with a Line-by-line Deep Read Audit (Questions / Missing / Contradictions).
   - `Docs/Micro_Heist_Tree/00_START_HERE_AEGIS_MICRO_HEIST.md` → 1.7A / 1.7B
@@ -32,5 +32,6 @@
 ## 3.0 Open Items (in-doc tags)
 - Use `[INBOX-REVIEW]` for missing definitions/criteria discovered while editing modules.
 - Use `[REVIEW-CONFLICT]` for irreconcilable conflicts (default strict).
+
 
 

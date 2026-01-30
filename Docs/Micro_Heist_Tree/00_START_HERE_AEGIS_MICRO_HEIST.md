@@ -108,9 +108,7 @@ EXECUTE_STANDARD (what it means):
 3) Ensure a clear Procedure Checklist exists and is usable as-is.
 4) Remove duplication by using canonical links (keep only minimal stubs when needed for usability).
 5) Apply QA gates: do not loosen invariants; do not introduce new numbers; unresolved ambiguity defaults strict and is flagged for review inside docs.
-6) Line-by-line Deep Read Audit: read the updated file carefully and produce:
-   - Questions (clarifications needed)
-   - Missing items (definitions/criteria/inputs/outputs)
-   - Contradictions (internal or vs canon)
-   - Safe strict defaults until resolved
+$17) Ensure an **Open Questions (Audit)** section exists in the target file:
+   - If missing: add the standard stub at the end of the file.
+   - Populate it from the audit output (Questions / Missing / Contradictions).
 
