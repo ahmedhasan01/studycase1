@@ -1,4 +1,4 @@
-﻿# Aegis Micro Heist — Start Here (Operating Universe)
+# Aegis Micro Heist — Start Here (Operating Universe)
 
 ## Mini-Index
 - 1.0 What this is
@@ -75,7 +75,7 @@ After P0:
   - Operating Header
   - Procedure checklist
   - Links to canonical definitions (no duplication)
-  - QA pass (no loosened invariants, no new numbers unless already local)
+  - QA pass (no loosened invariants, numeric thresholds are allowed when explicit and labeled LOCAL (include units + applicability); if uncertain tag [INBOX-REVIEW])
 - The working plan is tracked in: `Docs/Micro_Heist_Tree/00_MANIFEST_AEGIS_MICRO_HEIST.md`
 - Canon protocol: see 1.7A / 1.7B.
 
@@ -107,7 +107,7 @@ EXECUTE_STANDARD (what it means):
 2) Ensure the module has an Operating Header (Mission / Use when / Constraints / Inputs / Outputs / Failure modes / Non-goals).
 3) Ensure a clear Procedure Checklist exists and is usable as-is.
 4) Remove duplication by using canonical links (keep only minimal stubs when needed for usability).
-5) Apply QA gates: do not loosen invariants; do not introduce new numbers; unresolved ambiguity defaults strict and is flagged for review inside docs.
+5) Apply QA gates: do not loosen invariants; numeric thresholds are allowed when explicit and labeled LOCAL (include units + applicability); if uncertain tag [INBOX-REVIEW]; unresolved ambiguity defaults strict and is flagged for review inside docs.
 6) Line-by-line Deep Read Audit: read the updated file carefully and produce:
    - Questions (clarifications needed)
    - Missing items (definitions/criteria/inputs/outputs)

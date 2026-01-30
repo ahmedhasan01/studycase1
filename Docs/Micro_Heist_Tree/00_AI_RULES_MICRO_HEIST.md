@@ -1,4 +1,4 @@
-﻿# AI Rules Overlay — Aegis Micro Heist (Trading-Only Universe)
+# AI Rules Overlay — Aegis Micro Heist (Trading-Only Universe)
 
 ## 0.0 Purpose
 - Folder-scoped overlay to `Docs/rules/AI_Rules.md` for `Docs/Micro_Heist_Tree/`.
@@ -26,7 +26,7 @@ Workflow for every patch:
 External/online/books may be consulted ONLY as *rationale* for wording/definitions when needed.
 External rationale MUST NOT:
 - override invariants,
-- introduce numeric thresholds if not already local,
+- introduce numeric thresholds only when explicitly labeled LOCAL (include units + applicability),
 - weaken gating under uncertainty,
 - change the precedence ladder.
 If external conflicts with local canon → discard external.
@@ -39,7 +39,7 @@ If external conflicts with local canon → discard external.
 - Long/Short only; no venue types/names.
 - Reduce/Exit invariant: Long reduces/exits Short; Short reduces/exits Long.
 - Reduce-first doctrine: reduce/exit first, then consider new exposure.
-- Confirmed Winning Bias flip → MUST reduce/exit current exposure before any new aligned exposure.
+- Confirmed flip → MUST reduce/exit current exposure before any new aligned exposure.
 - Robustness gating: if readiness/health/quality is degraded, block new entries; exits allowed.
 - Unknown-Mode: if regime is unclear or conflicts persist, entries blocked or heavily throttled; exits allowed.
 - Minimal regime taxonomy: Trend, Range, Chop/Noise, High-Vol Expansion, Low-Vol Compression, Shock/Dislocation.
@@ -92,7 +92,7 @@ A checklist of exact steps to apply this module (5–12 steps):
 - Header present and accurate (Mission/Use/Constraints/Procedure).
 - Definitions consistent with glossary; no terminology drift.
 - No weakening of invariants or precedence ladder.
-- No new numeric thresholds unless already present locally.
+- Numeric thresholds are allowed if explicitly labeled LOCAL (include units + applicability); if uncertain tag [INBOX-REVIEW].
 - Any uncertainty is tagged `[INBOX-REVIEW]` inside docs and defaults strict.
 - Any irreconcilable conflict is tagged `[REVIEW-CONFLICT]` and blocks entries by default.
 

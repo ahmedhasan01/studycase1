@@ -1,4 +1,4 @@
-﻿# Aegis Micro Heist — Manifest (Build Plan Pointer)
+# Aegis Micro Heist — Manifest (Build Plan Pointer)
 
 ## 0.0 Purpose
 - This file is a **pointer + constraints** for the build plan.
