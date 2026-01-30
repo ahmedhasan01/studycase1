@@ -1,31 +1,3 @@
-# Conflict Resolution
-
-## Mini-Index
-    - 1.0 Purpose 
-    - 1.1 Inputs / Dependencies 
-    - 1.2 Rules (MUST/SHOULD/MAY) 
-    - 1.3 Edge Cases / Conflicts 
-    - 1.4 Examples (minimal, conceptual) 
-    - 1.5 Open Questions 
-
-## 1.0 Purpose
-    - Specify deterministic precedence when signals or gates conflict. 
-
-## 1.1 Inputs / Dependencies
-    - Bias state, regime, confirmations, health/readiness, edge-positive status.
-
-## 1.2 Rules (MUST/SHOULD/MAY)
-    - MUST Precedence: Operational Robustness > Core Invariants > Confirmed flip exit mandate > Edge-positive gate > Bias/Regime preferences > Setup intent. 
-    - MUST Unknown-Mode when conflicts unresolved; entries blocked/throttled; exits allowed. 
-    - SHOULD Document any additional precedence derived from Adaptive Parameters Policy; adaptives cannot override invariants. 
-    - MAY add tie-breaks (e.g., higher-TF filter) provided they obey precedence above.
-
-## 1.3 Edge Cases / Conflicts 
-    - Bias allows but health fails and health veto; entries blocked. 
-    - Setup confirmed but edge unknown and block.
-
-## 1.4 Examples (minimal, conceptual) 
-    - Regime Trend says go, but robustness degraded and stand down; exits only. 
-
-## 1.5 Open Questions 
-    - [INBOX-REVIEW] Additional tie-break rules if multiple high-quality setups conflict.
+# Conflict Resolution ## Mini-Index - 1.0 Purpose - 1.1 Inputs / Dependencies - 1.2 Rules (MUST/SHOULD/MAY) - 1.3 Edge Cases / Conflicts - 1.4 Examples (minimal, conceptual) - 1.5 Open Questions 1.0 Purpose - Specify deterministic precedence when signals or gates conflict. 1.1 Inputs / Dependencies - Bias state, regime, confirmations, health/readiness, edge-positive status.
+1.2 Rules (MUST/SHOULD/MAY) - MUST Precedence: Operational Robustness > Core Invariants > Confirmed flip exit mandate > Edge-positive gate > Bias/Regime preferences > Setup intent. - MUST Unknown-Mode when conflicts unresolved; entries blocked/throttled; exits allowed. - SHOULD Document any additional precedence derived from Adaptive Parameters Policy; adaptives cannot override invariants. - MAY add tie-breaks (e.g., higher-TF filter) provided they obey precedence above.
+1.3 Edge Cases / Conflicts - Bias allows but health fails ? health veto; entries blocked. - Setup confirmed but edge unknown ? block; mark [INBOX-REVIEW] for edge definition. 1.4 Examples (minimal, conceptual) - Regime Trend says go, but robustness degraded ? stand down; exits only. 1.5 Open Questions - [INBOX-REVIEW] Additional tie-break rules if multiple high-quality setups conflict.
