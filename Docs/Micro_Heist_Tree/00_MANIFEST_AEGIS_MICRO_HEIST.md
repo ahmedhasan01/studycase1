@@ -31,3 +31,4 @@
 ## 3.0 Open Items (in-doc tags)
 - Use `[INBOX-REVIEW]` for missing definitions/criteria discovered while editing modules.
 - Use `[REVIEW-CONFLICT]` for irreconcilable conflicts (default strict).
+

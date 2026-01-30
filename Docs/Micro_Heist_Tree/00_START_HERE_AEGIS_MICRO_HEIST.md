@@ -84,6 +84,13 @@ Default mode is Discussion-only.
 - The assistant begins with **OPEN DISCUSSION**: summarize requested change, map exact insertion points, and provide final proposed text blocks.
 - No repository/file-writing steps are performed unless the user explicitly sends: **#RUN_PS**.
 
+
+
+When running #RUN_PS patches (standard):
+- Regenerate Docs/_meta/Road_map.md **before** commit/push.
+- After push: copy a single clipboard block containing:
+  - Commit URL
+  - Road_map RAW(main) URL
 If GitHub RAW(main) is unavailable or cannot be read fully (chat behavior):
 - **STOP**
 - **OPEN DISCUSSION** (state what is missing and what fallback is needed)
@@ -101,3 +108,9 @@ EXECUTE_STANDARD (what it means):
 3) Ensure a clear Procedure Checklist exists and is usable as-is.
 4) Remove duplication by using canonical links (keep only minimal stubs when needed for usability).
 5) Apply QA gates: do not loosen invariants; do not introduce new numbers; unresolved ambiguity defaults strict and is flagged for review inside docs.
+6) Line-by-line Deep Read Audit: read the updated file carefully and produce:
+   - Questions (clarifications needed)
+   - Missing items (definitions/criteria/inputs/outputs)
+   - Contradictions (internal or vs canon)
+   - Safe strict defaults until resolved
+

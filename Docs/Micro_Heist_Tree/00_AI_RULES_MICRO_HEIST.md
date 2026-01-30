@@ -33,7 +33,7 @@ If external conflicts with local canon → discard external.
 
 ## 0.3 Chat Mode Gate (Discussion vs Patch)
 - Discussion-only is the default. The assistant must begin with **OPEN DISCUSSION**: proposed deltas, exact insertion points, and final text blocks.
-- No patch / no file-writing / no repo steps unless the user explicitly provides: **#RUN_PS**.
+- OPEN DISCUSSION output MUST include a **Line-by-line Deep Read Audit** (Questions / Missing / Contradictions) before any #RUN_PS.\n- No patch / no file-writing / no repo steps unless the user explicitly provides: **#RUN_PS**.
 
 ## 1.0 Non-Negotiables (INVARIANTS)
 - Long/Short only; no venue types/names.
@@ -99,3 +99,4 @@ A checklist of exact steps to apply this module (5–12 steps):
 - Touch 1–4 files per patch.
 - Integrate only; avoid refactors unless explicitly requested.
 - Each completed file must be directly usable by a reader without needing hidden context.
+
