@@ -1,4 +1,4 @@
-﻿# Road_map (Paths + RAW links) Auto-generated. Source: git ls-files "*.md" (grouped by directory).
+# Road_map (Paths + RAW links) Auto-generated. Source: git ls-files "*.md" (grouped by directory).
 
 ## Docs
 - Docs/Aegis_Trade_micro.md
