@@ -87,11 +87,19 @@ Define non-adaptive guardrails for live 1–20 minute trading that always hold, 
 - **Confirmed flip** while holding → EXIT current before any new aligned exposure.
 
 ## 1.45 Canon Notes (Linked)
-- **Confirmed flip**: 01_Foundations/05_Decision_Glossary.md and Bias-module criteria (TBD).
-- **Unknown-Mode**: 01_Foundations/05_Decision_Glossary.md.
-- **Edge-positive**: 01_Foundations/03_Definitions_Glossary.md and 01_Foundations/05_Decision_Glossary.md.
-- **Friction**: 01_Foundations/05_Decision_Glossary.md.
-- **Readiness/Health veto**: 08_Operational_Robustness/01_Readiness_and_Health_Gates.md.
+These are the controlling references. This file enforces them for entries (exits/reductions allowed).
+
+- **Confirmed flip**: bias shift that meets confirmation criteria in Bias module; triggers mandatory exit before any new aligned exposure.
+  - See: [05_Decision_Glossary.md](05_Decision_Glossary.md) + Bias-module criteria (TBD)
+- **Unknown-Mode**: regime/conflict unresolved => entries blocked/heavily throttled; exits/reductions allowed until clarity+readiness return.
+  - See: [05_Decision_Glossary.md](05_Decision_Glossary.md)
+- **Edge-positive**: expected edge exceeds expected friction; if undefined/unclear => treat as NOT met => BLOCK entries.
+  - See: [03_Definitions_Glossary.md](03_Definitions_Glossary.md) and [05_Decision_Glossary.md](05_Decision_Glossary.md)
+- **Friction**: spread + slippage/impact + fees + adverse selection risk; unknown component => tighten gating.
+  - See: [05_Decision_Glossary.md](05_Decision_Glossary.md)
+- **Readiness/Health veto**: readiness/health/data-quality FAIL => BLOCK entries; exits/reductions allowed.
+  - See: [01_Readiness_and_Health_Gates.md](../08_Operational_Robustness/01_Readiness_and_Health_Gates.md)
+
 
 ## 1.5 Open Questions (Audit)
 
