@@ -1,10 +1,10 @@
-﻿# Definitions & Glossary
+# Definitions & Glossary
 
 ## Operating Header
   - Mission: Provide canonical definitions used across the micro trading universe (1–20m).
   - Use when: Any term appears in another module (Winning Bias, Edge-positive, Unknown-Mode, etc.).
   - Hard constraints (cannot override):
-    - No numeric thresholds unless already present locally; otherwise tag [INBOX-REVIEW].
+Numeric thresholds are allowed when explicitly labeled **[LOCAL]** (include units + applicability). If uncertain, tag **[INBOX-REVIEW]** and default strict.
     - Under uncertainty: default strict (BLOCK/THROTTLE entries); exits/reductions allowed.
   - Inputs / Dependencies (links):
     - Docs/Micro_Heist_Tree/01_Foundations/04_Core_Invariants.md
