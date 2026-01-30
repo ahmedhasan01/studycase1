@@ -5,27 +5,35 @@
 - Goal: every file must be immediately understandable and directly applicable as an operating module for trading (all styles, with focus on 1–20m micro trade).
 - Default safety: under uncertainty or missing info → become stricter (BLOCK/THROTTLE entries); exits/reductions always allowed.
 - If unresolved conflict → tag `[REVIEW-CONFLICT]` and DO NOT guess.
-- If missing definitions/criteria → tag `[INBOX-REVIEW]` and default strict.
+- If missing definitions/criteria → tag `[INBOX-REVIEW]` inside docs and default strict.
 
 ## 0.1 Canon Policy (Local rules are king)
 
 ## 0.2 GitHub RAW Read-Before-Write (Mandatory)
 - Before modifying or relying on any module/file, the assistant MUST open and read the GitHub RAW(main) version of that file.
 - Do NOT rely on memory, local copies, or assumptions.
-- If RAW(main) is not accessible or the file cannot be read fully: STOP and tag [INBOX-REVIEW] (default strict behavior: BLOCK/THROTTLE entries; exits allowed).
-- Workflow for every patch:
-  1) Get RAW(main) link from Docs/_meta/Road_map.md.
-  2) Read the RAW file fully.
-  3) Apply INTEGRATE-only edits and commit/push.
 
-- Project-local docs are canonical.
-- External/online/books may be consulted ONLY as *rationale* for wording/definitions when needed.
-- External rationale MUST NOT:
-  - override invariants,
-  - introduce numeric thresholds if not already local,
-  - weaken gating under uncertainty,
-  - change the precedence ladder.
-- If external conflicts with local canon → discard external.
+If RAW(main) is not accessible or the file cannot be read fully (chat behavior):
+- **STOP**
+- **OPEN DISCUSSION**
+- default strict behavior: **BLOCK/THROTTLE entries; exits/reductions allowed**
+
+Workflow for every patch:
+1) Get RAW(main) link from `Docs/_meta/Road_map.md`.
+2) Read the RAW file fully.
+3) Apply INTEGRATE-only edits and commit/push.
+
+External/online/books may be consulted ONLY as *rationale* for wording/definitions when needed.
+External rationale MUST NOT:
+- override invariants,
+- introduce numeric thresholds if not already local,
+- weaken gating under uncertainty,
+- change the precedence ladder.
+If external conflicts with local canon → discard external.
+
+## 0.3 Chat Mode Gate (Discussion vs Patch)
+- Discussion-only is the default. The assistant must begin with **OPEN DISCUSSION**: proposed deltas, exact insertion points, and final text blocks.
+- No patch / no file-writing / no repo steps unless the user explicitly provides: **#RUN_PS**.
 
 ## 1.0 Non-Negotiables (INVARIANTS)
 - Long/Short only; no venue types/names.
@@ -77,66 +85,17 @@ A checklist of exact steps to apply this module (5–12 steps):
   - what data is required/optional,
   - how to validate it (quality gates),
   - how decisions fail-safe when data is missing.
-- If required data is missing or stale → BLOCK/THROTTLE entries; exits allowed.
+- If required data is missing or stale → BLOCK/THROTTLE entries; exits/reductions allowed.
 
 ## 5.0 QA Gates (Before marking a file DONE)
 - Header present and accurate (Mission/Use/Constraints/Procedure).
 - Definitions consistent with glossary; no terminology drift.
 - No weakening of invariants or precedence ladder.
 - No new numeric thresholds unless already present locally.
-- Any uncertainty is tagged `[INBOX-REVIEW]` and defaults strict.
+- Any uncertainty is tagged `[INBOX-REVIEW]` inside docs and defaults strict.
 - Any irreconcilable conflict is tagged `[REVIEW-CONFLICT]` and blocks entries by default.
 
 ## 6.0 Batch Rules (How we work file-by-file)
 - Touch 1–4 files per patch.
 - Integrate only; avoid refactors unless explicitly requested.
 - Each completed file must be directly usable by a reader without needing hidden context.
-
-
-## 7.1 GitHub RAW Auto-restore (Mandatory)
-- If local content differs from GitHub RAW(main) for any target file, the patch MUST:
-  1) Download/read RAW(main),
-  2) Auto-restore the local file to match RAW(main),
-  3) Only then apply edits.
-- Never continue edits on a drifted local copy.
-
-
-### 4.4 Clean Module Style (required)
-Goal: “Clean like checklist” (readable, deterministic), but the module is still a full module (not a checklist doc).
-
-**Canonical structure order (keep it tight):**
-1) # Title
-2) ## Operating Header
-3) ## Procedure
-4) ## Decision States (PASS / THROTTLE / BLOCK)
-5) ## Triggers (what moves state)
-6) ## Actions (what to do now)
-7) ## Recovery Ladder (how to return to PASS)
-8) ## Notes (max 2–3 bullets)
-
-**Legacy policy (mandatory):**
-- Any legacy / duplicated / pre-standard content MUST be preserved but wrapped inside:
-  - ## Legacy (pre-standard) ...
-  - <details><summary>Show legacy content</summary> ... </details>
-- Never keep legacy as a second visible full document that repeats headings at top level.
-
-**Linking rule:**
-- If something is canon elsewhere → link it, do not copy it. (Definition stubs allowed only if needed for usability.)
-
-## 7.2 Step/Folder Clean Gate (Mandatory)
-Applies to every patch and every folder.
-
-**Gate order (must be enforced):**
-1) **GitHub Source Gate:** target files MUST be read from GitHub (RAW(main) or origin/main:<path>).
-2) **Working Tree Gate:** working tree MUST be clean before edits.
-   - If not clean, default action is to stash:
-     - git stash push -u -m "stash before patch <step>/<folder>"
-   - Never run a patch on a dirty tree.
-3) **Auto-restore Gate (Option A):** if local differs from GitHub for any target file:
-   - auto-restore local from GitHub, then apply edits.
-4) **Commit Gate:** commit + push only after gates pass; 1 patch = 1 commit.
-
-**Notes:**
-- Stashed changes must be re-applied later and committed separately.
-- If RAW fetch fails, origin/main:<path> is the fallback for GitHub truth.
-

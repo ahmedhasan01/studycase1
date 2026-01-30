@@ -9,6 +9,8 @@
 - 1.5 If X happens (default actions)
 - 1.6 Data for trading (inputs + quality gates)
 - 1.7 How to contribute edits (the standard)
+- 1.7A Conversation Protocol (OPEN DISCUSSION → #RUN_PS)
+- 1.7B Manual Execute Commands (Operator Input Template)
 
 ## 1.0 What this is
 - A deterministic trading documentation universe (all styles; focus 1–20m micro trade).
@@ -16,15 +18,13 @@
 
 ## 1.1 How to use the universe (file-by-file)
 
-## 1.1A GitHub RAW rule (mandatory)
+### 1.1A GitHub RAW rule (mandatory)
 - Any time you use or edit a module, first open and read its GitHub RAW(main) version.
-- If RAW cannot be read, treat the topic as [INBOX-REVIEW] and default strict (BLOCK/THROTTLE entries; exits allowed).
-
-- Read the P0 files in order (Section 1.4).
+- If RAW cannot be read fully (chat behavior): **STOP → OPEN DISCUSSION → strict default** (BLOCK/THROTTLE entries; exits/reductions allowed).
 - When you open any module:
   1) Read the Operating Header (Mission / Use when / Constraints).
   2) Follow the Procedure checklist exactly.
-  3) If anything is unclear → tag `[INBOX-REVIEW]` and default strict (BLOCK/THROTTLE entries); exits allowed.
+  3) If anything is unclear: default strict (BLOCK/THROTTLE entries); exits allowed. (Document-level tags live inside docs, not required in chat.)
 
 ## 1.2 The decision flow (one line)
 Ready → Winning Bias → Edge-positive → Regime/Router → Setup → Confirm → Enter/Manage → Flip? Exit.
@@ -61,7 +61,7 @@ After P0:
 - Data-quality fails (stale/missing/misaligned): BLOCK/THROTTLE entries; exits allowed.
 - Unknown regime/conflict: Unknown-Mode → BLOCK/THROTTLE entries; exits allowed.
 - Confirmed flip: reduce/exit current exposure before new aligned exposure.
-- Edge unclear/negative: BLOCK entries; exits allowed; tag `[INBOX-REVIEW]`.
+- Edge unclear/negative: BLOCK entries; exits allowed.
 
 ## 1.6 Data for trading (inputs + quality gates)
 - Data is a trading input, not an integration project.
@@ -76,4 +76,28 @@ After P0:
   - Procedure checklist
   - Links to canonical definitions (no duplication)
   - QA pass (no loosened invariants, no new numbers unless already local)
-- The working plan is tracked in: `Docs/Micro_Heist_Tree/00_MANIFEST_AEGIS_MICRO_HEIST.md`.
+- The working plan is tracked in: `Docs/Micro_Heist_Tree/00_MANIFEST_AEGIS_MICRO_HEIST.md`
+- Canon protocol: see 1.7A / 1.7B.
+
+## 1.7A Conversation Protocol (OPEN DISCUSSION → #RUN_PS)
+Default mode is Discussion-only.
+- The assistant begins with **OPEN DISCUSSION**: summarize requested change, map exact insertion points, and provide final proposed text blocks.
+- No repository/file-writing steps are performed unless the user explicitly sends: **#RUN_PS**.
+
+If GitHub RAW(main) is unavailable or cannot be read fully (chat behavior):
+- **STOP**
+- **OPEN DISCUSSION** (state what is missing and what fallback is needed)
+- Apply **strict default** (BLOCK/THROTTLE entries; exits/reductions allowed)
+
+## 1.7B Manual Execute Commands (Operator Input Template)
+Use this template in chat:
+- FILE: <repo-relative path from Road_map OR the RAW(main) link>
+- ACTION: EXECUTE_STANDARD
+- EXTRA: (optional) + ... / + ...
+
+EXECUTE_STANDARD (what it means):
+1) Open and read the target file from GitHub RAW(main).
+2) Ensure the module has an Operating Header (Mission / Use when / Constraints / Inputs / Outputs / Failure modes / Non-goals).
+3) Ensure a clear Procedure Checklist exists and is usable as-is.
+4) Remove duplication by using canonical links (keep only minimal stubs when needed for usability).
+5) Apply QA gates: do not loosen invariants; do not introduce new numbers; unresolved ambiguity defaults strict and is flagged for review inside docs.
