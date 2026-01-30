@@ -74,5 +74,27 @@ Define non-adaptive guardrails for live 1–20 minute trading that always hold, 
 - Edge borderline and health degraded → BLOCK entries; EXIT or REDUCE existing.
 - Confirmed flip while holding → EXIT current before any new aligned exposure.
 
-## 1.5 Open Questions
-- [INBOX-REVIEW] Precise edge-positive metric definition and threshold.
+## 1.5 Open Questions (Audit)
+
+> Operating rule: until these are resolved, default strict behavior applies (BLOCK/THROTTLE entries; exits/reductions allowed). Tag items as [INBOX-REVIEW]. Do not guess.
+
+### 1.5A Questions (clarifications needed)
+- [INBOX-REVIEW] **Confirmed flip:** what is the canonical definition and confirmation criteria? Where is the canonical file that defines it?
+- [INBOX-REVIEW] **Unknown-Mode:** exact trigger conditions (what counts as “conflict unresolved / regime unclear”), and where is the canonical definition?
+- [INBOX-REVIEW] **Edge-positive:** operational definition (what evidence qualifies as “edge-positive”) without introducing new numeric thresholds.
+- [INBOX-REVIEW] **Friction:** what components are included in “expected friction” (spread/impact only, or also slippage/fees/latency)? How to handle this deterministically without adding numbers?
+- [INBOX-REVIEW] **EXIT vs REDUCE wording under Confirmed flip:** does “exit current exposure” mean full flatten immediately, or is staged reduce acceptable before full exit?
+
+### 1.5B Missing items (definitions/criteria/links)
+- [INBOX-REVIEW] Link the canonical definitions for: Confirmed flip / Unknown-Mode / Edge-positive / Friction (once those modules are finalized).
+- [INBOX-REVIEW] Triggers for **THROTTLE vs BLOCK** under uncertainty: what conditions allow THROTTLE (vs mandatory BLOCK)?
+
+### 1.5C Contradictions (internal or vs canon)
+- None detected inside this file right now.
+- Potential conflict to watch: any future definition that weakens “robustness veto” or allows entries when edge/friction is undefined (must remain strict).
+
+### 1.5D Safe defaults until resolved (do not loosen)
+- If Edge-positive is not explicitly defined/verified ⇒ treat edge as NOT met ⇒ **BLOCK entries; exits/reductions allowed**.
+- If Friction definition is missing ⇒ treat edge as NOT met ⇒ **BLOCK entries; exits/reductions allowed**.
+- If Confirmed flip definition is unclear in live context ⇒ treat as uncertainty ⇒ **THROTTLE/BLOCK entries** and prioritize reducing risk; never overlap opposing exposures.
+- If Unknown-Mode trigger is uncertain ⇒ prefer **Unknown-Mode strict** (BLOCK/THROTTLE entries); exits allowed.
