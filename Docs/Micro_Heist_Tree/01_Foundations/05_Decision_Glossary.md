@@ -1,10 +1,10 @@
-# Decision Glossary
+﻿# Decision Glossary
 
 ## Operating Header
   - Mission: Provide canonical decision terms used to gate trading (Ready, Winning Bias, Confirmed flip, Edge-positive, Friction, Unknown-Mode, VALID, Throttle).
   - Use when: Any module outputs PASS/BLOCK/THROTTLE or references readiness/edge/friction/unknown-mode.
   - Hard constraints (cannot override):
-Numeric thresholds are allowed when explicitly labeled **[LOCAL]** (include units + applicability). If uncertain, tag **[INBOX-REVIEW]** and default strict.
+    - No numeric thresholds unless already present locally; otherwise tag [INBOX-REVIEW].
     - If a decision term’s criteria is missing/unclear → default strict (BLOCK/THROTTLE entries); exits allowed.
     - This file is canonical for decision vocabulary; other modules must link here (no redefinition).
   - Inputs / Dependencies (links):
