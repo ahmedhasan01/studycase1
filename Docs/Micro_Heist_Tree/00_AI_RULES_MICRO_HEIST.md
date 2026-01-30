@@ -1,34 +1,31 @@
 ﻿# AI Rules Overlay — Aegis Micro Heist (Trading-Only Universe)
 
 ## 0.0 Purpose
-- Folder-scoped overlay to Docs/rules/AI_Rules.md for Docs/Micro_Heist_Tree/.
+- Folder-scoped overlay to `Docs/rules/AI_Rules.md` for `Docs/Micro_Heist_Tree/`.
 - Goal: every file must be immediately understandable and directly applicable as an operating module for trading (all styles, with focus on 1–20m micro trade).
 - Default safety: under uncertainty or missing info → become stricter (BLOCK/THROTTLE entries); exits/reductions always allowed.
-- If unresolved conflict → tag [REVIEW-CONFLICT] and DO NOT guess.
-- If missing definitions/criteria → tag [INBOX-REVIEW] and default strict.
+- If unresolved conflict → tag `[REVIEW-CONFLICT]` and DO NOT guess.
+- If missing definitions/criteria → tag `[INBOX-REVIEW]` and default strict.
 
 ## 0.1 Canon Policy (Local rules are king)
 
 ## 0.2 GitHub RAW Read-Before-Write (Mandatory)
 - Before modifying or relying on any module/file, the assistant MUST open and read the GitHub RAW(main) version of that file.
 - Do NOT rely on memory, local copies, or assumptions.
-- If RAW(main) is not accessible or the file cannot be read fully: STOP → OPEN DISCUSSION → default strict behavior (BLOCK/THROTTLE entries; exits allowed).
+- If RAW(main) is not accessible or the file cannot be read fully: STOP and tag [INBOX-REVIEW] (default strict behavior: BLOCK/THROTTLE entries; exits allowed).
 - Workflow for every patch:
   1) Get RAW(main) link from Docs/_meta/Road_map.md.
   2) Read the RAW file fully.
   3) Apply INTEGRATE-only edits and commit/push.
+
 - Project-local docs are canonical.
-- External/online/books may be consulted ONLY as rationale for wording/definitions when needed.
+- External/online/books may be consulted ONLY as *rationale* for wording/definitions when needed.
 - External rationale MUST NOT:
   - override invariants,
   - introduce numeric thresholds if not already local,
   - weaken gating under uncertainty,
   - change the precedence ladder.
 - If external conflicts with local canon → discard external.
-
-## 0.3 Chat Mode Gate (Discussion vs Patch)
-- Discussion-only is the default. The assistant must begin with OPEN DISCUSSION: proposed deltas, exact insertion points, and final text blocks.
-- No patch / no file-writing / no repo steps unless the user explicitly provides: #RUN_PS.
 
 ## 1.0 Non-Negotiables (INVARIANTS)
 - Long/Short only; no venue types/names.
@@ -49,7 +46,7 @@
 7) Setup definitions.
 8) Frequency fine-tuning (adaptive, tighten-only).
 
-## 3.0 Mandatory File Standard (Every .md module)
+## 3.0 Mandatory File Standard (Every `.md` module)
 Every file MUST start with the following header (INTEGRATE-only: add on top without rewriting existing content unless requested):
 
 ### 3.1 Operating Header (required)
@@ -72,7 +69,7 @@ A checklist of exact steps to apply this module (5–12 steps):
 
 ### 3.3 Anti-duplication rule
 - If a definition exists canonically elsewhere, link it; do not copy it.
-- If linking would make the file unusable, include a short local definition stub and link to the canonical definition.
+- If linking would make the file unusable, include a short local “definition stub” and link to the canonical definition.
 
 ## 4.0 Trading Data Rule (Trading-only; not engineering)
 - Data is treated as a trading input, not an integration project.
@@ -87,13 +84,14 @@ A checklist of exact steps to apply this module (5–12 steps):
 - Definitions consistent with glossary; no terminology drift.
 - No weakening of invariants or precedence ladder.
 - No new numeric thresholds unless already present locally.
-- Any uncertainty is tagged [INBOX-REVIEW] and defaults strict.
-- Any irreconcilable conflict is tagged [REVIEW-CONFLICT] and blocks entries by default.
+- Any uncertainty is tagged `[INBOX-REVIEW]` and defaults strict.
+- Any irreconcilable conflict is tagged `[REVIEW-CONFLICT]` and blocks entries by default.
 
 ## 6.0 Batch Rules (How we work file-by-file)
 - Touch 1–4 files per patch.
 - Integrate only; avoid refactors unless explicitly requested.
 - Each completed file must be directly usable by a reader without needing hidden context.
+
 
 ## 7.1 GitHub RAW Auto-restore (Mandatory)
 - If local content differs from GitHub RAW(main) for any target file, the patch MUST:
@@ -102,10 +100,11 @@ A checklist of exact steps to apply this module (5–12 steps):
   3) Only then apply edits.
 - Never continue edits on a drifted local copy.
 
-### 4.4 Clean Module Style (required)
-Goal: Clean like checklist (readable, deterministic), but the module is still a full module (not a checklist doc).
 
-Canonical structure order (keep it tight):
+### 4.4 Clean Module Style (required)
+Goal: “Clean like checklist” (readable, deterministic), but the module is still a full module (not a checklist doc).
+
+**Canonical structure order (keep it tight):**
 1) # Title
 2) ## Operating Header
 3) ## Procedure
@@ -115,28 +114,29 @@ Canonical structure order (keep it tight):
 7) ## Recovery Ladder (how to return to PASS)
 8) ## Notes (max 2–3 bullets)
 
-Legacy policy (mandatory):
+**Legacy policy (mandatory):**
 - Any legacy / duplicated / pre-standard content MUST be preserved but wrapped inside:
-  - ## Legacy (pre-standard)
-  - Show legacy content
+  - ## Legacy (pre-standard) ...
+  - <details><summary>Show legacy content</summary> ... </details>
 - Never keep legacy as a second visible full document that repeats headings at top level.
 
-Linking rule:
+**Linking rule:**
 - If something is canon elsewhere → link it, do not copy it. (Definition stubs allowed only if needed for usability.)
 
 ## 7.2 Step/Folder Clean Gate (Mandatory)
 Applies to every patch and every folder.
 
-Gate order (must be enforced):
-1) GitHub Source Gate: target files MUST be read from GitHub (RAW(main) or origin/main:).
-2) Working Tree Gate: working tree MUST be clean before edits.
+**Gate order (must be enforced):**
+1) **GitHub Source Gate:** target files MUST be read from GitHub (RAW(main) or origin/main:<path>).
+2) **Working Tree Gate:** working tree MUST be clean before edits.
    - If not clean, default action is to stash:
-     - git stash push -u -m "stash before patch /"
+     - git stash push -u -m "stash before patch <step>/<folder>"
    - Never run a patch on a dirty tree.
-3) Auto-restore Gate (Option A): if local differs from GitHub for any target file:
+3) **Auto-restore Gate (Option A):** if local differs from GitHub for any target file:
    - auto-restore local from GitHub, then apply edits.
-4) Commit Gate: commit + push only after gates pass; 1 patch = 1 commit.
+4) **Commit Gate:** commit + push only after gates pass; 1 patch = 1 commit.
 
-Notes:
+**Notes:**
 - Stashed changes must be re-applied later and committed separately.
-- If RAW fetch fails, origin/main: is the fallback for GitHub truth.
+- If RAW fetch fails, origin/main:<path> is the fallback for GitHub truth.
+
